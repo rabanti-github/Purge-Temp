@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "PurgeTemp": {
+      "commandName": "Project",
+      "commandLineArgs": "-h"
+    }
+  }
+}
