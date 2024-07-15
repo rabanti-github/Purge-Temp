@@ -5,6 +5,7 @@
  * You find a copy of the license in project folder or on: http://opensource.org/licenses/MIT
  */
 
+using PurgeTemp.Controller;
 using PurgeTemp.Interface;
 using System.Reflection;
 
@@ -15,14 +16,44 @@ namespace PurgeTemp.Utils
 	/// </summary>
 	public class PathUtils
 	{
+		private static readonly HashSet<string> ReservedNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+		{
+			"CON", "PRN", "AUX", "NUL",
+			"COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9",
+			"LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9"
+		};
+
+		private static HashSet<string> InitializeSystemPaths()
+		{
+			var systemPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+		{
+			Environment.GetFolderPath(Environment.SpecialFolder.Windows),
+			Environment.GetFolderPath(Environment.SpecialFolder.System),
+			Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),
+			Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86),
+			Environment.GetFolderPath(Environment.SpecialFolder.CommonProgramFiles),
+			Environment.GetFolderPath(Environment.SpecialFolder.CommonProgramFilesX86),
+			Environment.GetFolderPath(Environment.SpecialFolder.CommonPrograms),
+			Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+			Environment.GetFolderPath(Environment.SpecialFolder.CommonDocuments),
+			Environment.GetFolderPath(Environment.SpecialFolder.CommonDesktopDirectory)
+		};
+
+			return systemPaths;
+		}
+
+		private static readonly HashSet<string> SystemPaths = InitializeSystemPaths();
 
 		private readonly ISettings settings;
-		//private readonly IAppLogger appLogger;
+		private readonly ILoggerFactory loggerFactory;
+		private IAppLogger? appLogger;
+		private IAppLogger AppLogger => appLogger ??= loggerFactory.CreateAppLogger();
 
-		public PathUtils(ISettings settings)//, IAppLogger appLogger)
+
+		public PathUtils(ISettings settings, ILoggerFactory loggerFactory)//, IAppLogger appLogger)
 		{
 			this.settings = settings;
-			//this.appLogger = appLogger;
+			this.loggerFactory = loggerFactory;
 		}
 
 		public string GetPath(string token)
@@ -84,45 +115,7 @@ namespace PurgeTemp.Utils
 			}
 			catch (Exception ex)
 			{
-				appLogger.Error($"Error occurred while retrieving path: {ex.Message}");
-				return null;
-			}
-		}
-
-
-		public string GetPath_old(string basePath, string token)
-		{
-			if (!string.IsNullOrEmpty(basePath))
-			{
-				if (basePath.StartsWith(".\\") || basePath.StartsWith("./") || basePath.StartsWith(".\\") || basePath.StartsWith("./"))
-				{
-					basePath = GetPath(basePath);
-				}
-			}
-			try
-			{
-				if (string.IsNullOrEmpty(token))
-				{
-					return basePath;
-				}
-				if (token.StartsWith("./") || token.StartsWith(".\\"))
-				{
-					return CombineRelativePath(basePath, token, ".\\", "./");
-				}
-				else if (token.StartsWith("../") || basePath.StartsWith("..\\"))
-				{
-					DirectoryInfo directoryInfo = new DirectoryInfo(basePath);
-					string parentPath = directoryInfo.Parent.FullName;
-					return CombineRelativePath(parentPath, token, "../", "..\\");
-				}
-				else
-				{
-					return token; // Absolute path
-				}
-			}
-			catch (Exception ex)
-			{
-				appLogger.Error($"Error occurred while retrieving path: {ex.Message}");
+				AppLogger.Error($"Error occurred while retrieving path: {ex.Message}");
 				return null;
 			}
 		}
@@ -130,7 +123,7 @@ namespace PurgeTemp.Utils
 		private string CombineRelativePath(string basePath, string token, params string[] pathMarkers)
 		{
 			string root = basePath;
-			foreach(string prefix in pathMarkers)
+			foreach (string prefix in pathMarkers)
 			{
 				if (basePath.StartsWith(prefix))
 				{
@@ -138,19 +131,43 @@ namespace PurgeTemp.Utils
 					break;
 				}
 			}
-			string apendix = token;
+			string appendix = token;
 			foreach (string prefix in pathMarkers)
 			{
 				if (token.StartsWith(prefix))
 				{
-					apendix = token.Substring(prefix.Length);
+					appendix = token.Substring(prefix.Length);
 					break;
 				}
 			}
-			return Path.Combine(root, apendix);
+			return Path.Combine(root, appendix);
 		}
 
-		public string GetInitStageFolder()
+		public Result CreateFolder(string path, bool isStageFolder = true)
+		{
+			try
+			{
+				if (!Directory.Exists(path))
+				{
+					Directory.CreateDirectory(path);
+				}
+			}
+			catch (Exception ex)
+			{
+				AppLogger.Error($"Could n ot create folder '{path}': {ex.Message}");
+				if (isStageFolder)
+				{
+					return Result.Fail(ErrorCodes.CouldNotCreateNewStageFolder);
+				}
+				else
+				{
+					return Result.Fail(ErrorCodes.CouldNotCreateAdministrativeFolder);
+				}
+			}
+			return Result.Success();
+		}
+
+		public Result<string> GetInitStageFolder()
 		{
 			try
 			{
@@ -161,39 +178,41 @@ namespace PurgeTemp.Utils
 				int stageVersions = settings.StageVersions;
 
 				// Sanitize settings
-				(versionDelimiter, namePrefix) = SanitizeSettings(versionDelimiter, namePrefix);
+				(string versionDelimiter, string namePrefix) sanitizedSettings = SanitizeSettings(versionDelimiter, namePrefix);
 
 				string initialFolder;
 
 				// If the number should be appended on the first stage and it's not zero-based
 				if (appendNumberOnFirstStage && stageVersions > 0)
 				{
-					initialFolder = $"{namePrefix}{versionDelimiter}1";
+					initialFolder = $"{sanitizedSettings.namePrefix}{sanitizedSettings.versionDelimiter}1";
 				}
 				else
 				{
-					initialFolder = namePrefix;
+					initialFolder = sanitizedSettings.namePrefix;
 				}
 
-				return Path.Combine(rootFolder, initialFolder);
+				return Result<string>.Success(Path.Combine(rootFolder, initialFolder));
 			}
 			catch (Exception ex)
 			{
-				appLogger.Error($"Error occurred while retrieving initial stage folder: {ex.Message}");
-				return null;
+				AppLogger.Error($"An error occurred while retrieving initial stage folder: {ex.Message}");
+				return Result<string>.Fail(ErrorCodes.UnknownError); ;
 			}
 		}
 
-		public List<string> GetStageFolders()
+		public Result<List<string>> GetStageFolders()
 		{
 			List<string> stageFolders = new List<string>();
 
 			// Get the initial stage folder
-			string initStageFolder = GetInitStageFolder();
-			stageFolders.Add(initStageFolder);
+			Result<string> initStageValidation = GetInitStageFolder();
+			if (initStageValidation.IsNotValid)
+			{
+				return Result<List<string>>.Fail(initStageValidation.ErrorCode);
+			}
+			stageFolders.Add(initStageValidation.Value); // Already validated
 
-			// Get the additional stage folders
-			//Properties.Settings properties = Properties.Settings.Default;
 			string rootFolder = settings.StageRootFolder;
 			string namePrefix = settings.StageNamePrefix;
 			string versionDelimiter = settings.StageVersionDelimiter;
@@ -201,63 +220,166 @@ namespace PurgeTemp.Utils
 			int stageVersions = settings.StageVersions;
 
 			// Sanitize settings
-			(versionDelimiter, namePrefix, lastNameSuffix) = SanitizeSettings(versionDelimiter, namePrefix, lastNameSuffix);
+			(string versionDelimiter, string namePrefix, string lastNameSuffix) sanitizedSettings = SanitizeSettings(versionDelimiter, namePrefix, lastNameSuffix);
 
 
 			// If zero or one stage versions are configured, return only the initial stage folder
 			if (stageVersions <= 1)
 			{
-				return stageFolders;
+				return Result<List<string>>.Success(stageFolders); // TODO: is this correct / other error code?
 			}
 
 			// Add additional stage folders to the list
 			for (int i = 2; i <= stageVersions - 1; i++)
 			{
-				string stageFolder = $"{namePrefix}{versionDelimiter}{i}";
+				string stageFolder = $"{sanitizedSettings.namePrefix}{sanitizedSettings.versionDelimiter}{i}";
 				string absolutePath = Path.Combine(rootFolder, stageFolder);
 				stageFolders.Add(absolutePath);
 			}
 
 			// Append the last folder with the last name suffix
-			string lastStageFolder = $"{namePrefix}{versionDelimiter}{lastNameSuffix}";
+			string lastStageFolder = $"{sanitizedSettings.namePrefix}{sanitizedSettings.versionDelimiter}{sanitizedSettings.lastNameSuffix}";
 			string lastStageFolderPath = Path.Combine(rootFolder, lastStageFolder);
 			stageFolders.Add(lastStageFolderPath);
 
-			return stageFolders;
+			return Result<List<string>>.Success(stageFolders);
 		}
 
 		public (string delimiter, string prefix) SanitizeSettings(string delimiter, string prefix)
 		{
 			string dummy = "LAST";
 			(string delimiter, string prefix, string suffixForLast) value = SanitizeSettings(delimiter, prefix, dummy);
-			return (delimiter, prefix);
-
+			return (value.delimiter, value.prefix);
 		}
 
 		public (string delimiter, string prefix, string suffixForLast) SanitizeSettings(string delimiter, string prefix, string suffixForLast)
 		{
 			// Check and sanitize delimiter
-			if (string.IsNullOrEmpty(delimiter) || delimiter.IndexOfAny(Path.GetInvalidFileNameChars()) != -1)
+			if (string.IsNullOrEmpty(delimiter))
 			{
-				appLogger.Warning($"Invalid delimiter '{delimiter}' detected. Replacing with '-'.");
+				AppLogger.Information($"Valid, empty delimiter detected. Replacing potential null with empty.");
+				delimiter = "";
+			}
+			else if (delimiter.IndexOfAny(Path.GetInvalidFileNameChars()) != -1)
+			{
+				AppLogger.Warning($"Invalid characters in delimiter '{delimiter}' detected. Replacing with '-'.");
+				delimiter = "-";
+			}
+			else if (ReservedNames.Contains(delimiter))
+			{
+				AppLogger.Warning($"Reserved name '{delimiter}' detected as delimiter. Replacing with '-'.");
 				delimiter = "-";
 			}
 
 			// Check and sanitize prefix
-			if (string.IsNullOrEmpty(prefix) || prefix.IndexOfAny(Path.GetInvalidFileNameChars()) != -1)
+			Result prefixValidation = IsValidFolderName(prefix, true, "Replacing with 'purge-temp'.");
+			if (prefixValidation.IsNotValid)
 			{
-				appLogger.Warning($"Invalid prefix '{prefix}' detected. Replacing with 'purge-temp'.");
 				prefix = "purge-temp";
 			}
 
 			// Check and sanitize suffix for last
-			if (string.IsNullOrEmpty(suffixForLast) || suffixForLast.IndexOfAny(Path.GetInvalidFileNameChars()) != -1)
+			Result lastSuffixValidation = IsValidFolderName(suffixForLast, true, "Replacing with 'LAST'.");
+			if (lastSuffixValidation.IsNotValid)
 			{
-				appLogger.Warning($"Invalid suffix for last '{suffixForLast}' detected. Replacing with 'LAST'.");
 				suffixForLast = "LAST";
 			}
 
 			return (delimiter, prefix, suffixForLast);
 		}
+
+		public Result IsValidFolderName(string name, bool isWarning, string appendLogMessage = null)
+		{
+			try
+			{
+				if (string.IsNullOrEmpty(name))
+				{
+					WriteLogMessage($"Specified path is null.", appendLogMessage, isWarning);
+					return Result.Fail(ErrorCodes.EmptyFolderName);
+				}
+				DirectoryInfo info = new DirectoryInfo(name);
+				if (info.Name.IndexOfAny(Path.GetInvalidFileNameChars()) != -1)
+				{
+					WriteLogMessage($"Invalid characters in folder name '{name}' detected.", appendLogMessage, isWarning);
+					return Result.Fail(ErrorCodes.IllegalCharactersInFolderName);
+				}
+				else if (ReservedNames.Contains(name))
+				{
+					WriteLogMessage($"Reserved name '{name}' detected as folder name.", appendLogMessage, isWarning);
+					return Result.Fail(ErrorCodes.ReservedNameAsFolderName);
+				}
+				else if (name.EndsWith(" ") || name.EndsWith("."))
+				{
+					WriteLogMessage($"Folder '{name}' ends with a space or a dot.", appendLogMessage, isWarning);
+					return Result.Fail(ErrorCodes.InvalidFolderNameSuffix);
+				}
+				Result systemFolderValidation = CheckSystemRelevantFolder(name);
+				if (systemFolderValidation.IsValid)
+				{
+					return Result.Success();
+				}
+				else
+				{
+					return Result.Fail(systemFolderValidation.ErrorCode);
+				}
+			}
+			catch (Exception ex)
+			{
+				WriteLogMessage($"An unknown error occurred: " + ex.Message, appendLogMessage, isWarning);
+				return Result.Fail(ErrorCodes.UnknownError);
+			}
+		}
+
+		/// <summary>
+		/// Checks whether the provided folder path is a system-relevant folder that should not be touched.
+		/// </summary>
+		/// <param name="folderPath">The folder path to check.</param>
+		/// <returns></returns>
+		public Result CheckSystemRelevantFolder(string folderPath)
+		{
+			if (string.IsNullOrEmpty(folderPath))
+			{
+				WriteLogMessage($"Specified path is null.", null, false);
+				return Result.Fail(ErrorCodes.EmptyFolderName);
+			}
+
+			// Normalize the path to ensure consistency
+			string normalizedPath = Path.GetFullPath(folderPath).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+
+			// Check if the path matches any of the known system-relevant paths
+			if (SystemPaths.Contains(normalizedPath))
+			{
+				WriteLogMessage($"Specified path is a system relevant path and may not be created or deleted.", ":" + normalizedPath, false);
+				return Result.Fail(ErrorCodes.PathIsSystemDirectory);
+			}
+			return Result.Success();
+		}
+
+		private void WriteLogMessage(string message, String suffix, bool isWarning)
+		{
+			if (isWarning)
+			{
+				if (suffix != null)
+				{
+					AppLogger.Warning(message + " " + suffix);
+				}
+				else
+				{
+					AppLogger.Warning(message);
+				}
+			}
+			else
+			{
+				if (suffix != null)
+				{
+					AppLogger.Error(message + " " + suffix);
+				}
+				else
+				{
+					AppLogger.Error(message);
+				}
+			}
+		}
+
 	}
 }

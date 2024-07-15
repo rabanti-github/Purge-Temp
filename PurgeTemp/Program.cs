@@ -18,14 +18,15 @@ using PurgeTemp.Utils;
 /// </summary>
 public class Program
 {
-	static void Main(string[] args)
+	static int Main(string[] args)
 	{
 		IHost host = Host.CreateDefaultBuilder(args)
 			.ConfigureServices((context, services) =>
 			{
 				services.AddSingleton<IConfiguration>(context.Configuration);
+				services.AddSingleton<ILoggerFactory, LoggerFactory>();
 				services.AddTransient<CLI>();
-				services.AddSingleton<ISettings, Settings>(provider =>
+				services.AddTransient<ISettings, Settings>(provider =>
 				{
 					IConfiguration configuration = provider.GetRequiredService<IConfiguration>();
 					Settings settings = new Settings(configuration, Settings.APP_SETTINGS_FILE);
@@ -50,29 +51,10 @@ public class Program
 		{
 			IServiceProvider services = scope.ServiceProvider;
 			PurgeController purgeController = services.GetRequiredService<PurgeController>();
-			purgeController.ExecutePurge();
+			int statusCode = purgeController.ExecutePurge();
+			return statusCode;
 		}
 	}
-
-
-
-	//	public static IHostBuilder CreateHostBuilder(string[] args) =>
-	//	Host.CreateDefaultBuilder(args)
-	//		.ConfigureAppConfiguration((context, config) =>
-	//		{
-	//			config.AddJsonFile("appsettings.json", optional: true, reloadOnChange: true);
-	//			if (args.Length > 0)
-	//			{
-	//				config.AddJsonFile(args[0], optional: true, reloadOnChange: true);
-	//			}
-	//		})
-	//		.ConfigureServices((context, services) =>
-	//		{
-	//			services.AddSingleton<IConfiguration>(context.Configuration);
-	//			services.AddSingleton<ISettings, Settings>();
-	//			services.AddTransient<IAppLogger, AppLogger>();
-	//			services.AddTransient<PurgeController>();
-	//		});
 
 	/// <summary>
 	/// Returns an application context for test purposes
@@ -97,11 +79,20 @@ public class Program
 			.ConfigureServices((context, services) =>
 			{
 				services.AddSingleton<IConfiguration>(context.Configuration);
-				services.AddSingleton<CLI>();
-				services.AddSingleton<ISettings, Settings>(provider =>
+				services.AddSingleton<ILoggerFactory, LoggerFactory>();
+				services.AddTransient<CLI>();
+				services.AddTransient<ISettings, Settings>(provider =>
 				{
 					IConfiguration configuration = provider.GetRequiredService<IConfiguration>();
-					Settings settings = new Settings(configuration, Settings.APP_SETTINGS_FILE);
+					Settings settings;
+					if (testSettings == null)
+					{
+						settings = new Settings(configuration, Settings.APP_SETTINGS_FILE);
+					}
+					else
+					{
+						settings = testSettings;
+					}
 					if (args.Length != 0)
 					{
 						CLI cli = provider.GetRequiredService<CLI>();
@@ -110,11 +101,11 @@ public class Program
 
 					return settings;
 				});
-				services.AddSingleton<IPurgeLogger, PurgeLogger>();
-				services.AddSingleton<IAppLogger, AppLogger>();
-				services.AddSingleton<IDesktopNotification, DesktopNotification>();
-				services.AddSingleton<FileUtils>();
-				services.AddSingleton<PathUtils>();
+				services.AddTransient<IPurgeLogger, PurgeLogger>();
+				services.AddTransient<IAppLogger, AppLogger>();
+				services.AddTransient<IDesktopNotification, DesktopNotification>();
+				services.AddTransient<FileUtils>();
+				services.AddTransient<PathUtils>();
 				services.AddTransient<PurgeController>();
 			})
 			.Build();

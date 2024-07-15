@@ -6,22 +6,27 @@ using System.Threading.Tasks;
 
 namespace PurgeTempTest.Utils
 {
-    public class TempFolderFixture : IDisposable
-    {
-        public string TempFolderPath { get; private set; }
+	public class TempFolderFixture : IDisposable
+	{
+		private readonly List<string> tempFolders = new List<string>();
 
-        public TempFolderFixture()
-        {
-            TempFolderPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
-            Directory.CreateDirectory(TempFolderPath);
-        }
+		public string CreateUniqueTempFolder()
+		{
+			string tempFolderPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+			Directory.CreateDirectory(tempFolderPath);
+			tempFolders.Add(tempFolderPath);
+			return tempFolderPath;
+		}
 
-        public void Dispose()
-        {
-            if (Directory.Exists(TempFolderPath))
-            {
-                Directory.Delete(TempFolderPath, true);
-            }
-        }
-    }
+		public void Dispose()
+		{
+			foreach (var folder in tempFolders)
+			{
+				if (Directory.Exists(folder))
+				{
+					FileUtils.DeleteDirectoryWithRetry(folder);
+				}
+			}
+		}
+	}
 }

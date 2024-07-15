@@ -6,6 +6,7 @@
  */
 
 using PurgeTemp.Interface;
+using PurgeTemp.Logger;
 using PurgeTemp.Utils;
 
 namespace PurgeTemp.Controller
@@ -24,76 +25,106 @@ namespace PurgeTemp.Controller
 			OtherErrors
 		}
 
-
 		private readonly ISettings settings;
-		private readonly IAppLogger appLogger;
-		private readonly IPurgeLogger purgeLogger;
 		private readonly IDesktopNotification desktopNotification;
+		private readonly ILoggerFactory loggerFactory;
 		private readonly FileUtils fileUtils;
 		private readonly PathUtils pathUtils;
+		private IAppLogger? appLogger;
 
-		public PurgeController(IAppLogger appLogger, IPurgeLogger purgeLogger, ISettings settings, IDesktopNotification desktopNotification)
+		private IAppLogger AppLogger => appLogger ??= loggerFactory.CreateAppLogger();
+
+		public ExecutionEvaluation ExecutionState { get; set; }
+
+		public PurgeController(ILoggerFactory loggerFactory, ISettings settings)
 		{
-			this.appLogger = appLogger;
-			this.purgeLogger = purgeLogger;
 			this.settings = settings;
-			this.desktopNotification = desktopNotification;
-			this.fileUtils =  new FileUtils(settings, purgeLogger);	
-			this.pathUtils = new PathUtils(settings, appLogger);
+			this.loggerFactory = loggerFactory;
+			this.fileUtils = new FileUtils(settings, loggerFactory);
+			this.pathUtils = new PathUtils(settings, loggerFactory);
+			this.desktopNotification = new DesktopNotification(settings, this.pathUtils);
 		}
 
-		public void ExecutePurge()
+		public int ExecutePurge()
 		{
+			int errorCode = ErrorCodes.Success;
 			try
 			{
-				// Maintain all configured folders
-				MaintainAdministrativeFolders();
-				// Check if purge can be executed
-				ExecutionEvaluation evaluation = CanExecutePurge();
-				if (evaluation != ExecutionEvaluation.CanExecute)
+				Result result = ValidateGeneralSettings();
+				if (result.IsNotValid)
 				{
-					switch (evaluation)
-					{	
+					this.ExecutionState = ExecutionEvaluation.InvalidArguments;
+					desktopNotification.ShowNotification("Settings validation failed", $"The validation of the settings failed with code {result.ErrorCode}. Enable/see logs for details.", IDesktopNotification.Status.ERROR);
+					return result.ErrorCode;
+				}
+				// Maintain all configured folders
+				result = MaintainAdministrativeFolders();
+				if (result.IsNotValid)
+				{
+					this.ExecutionState = ExecutionEvaluation.InvalidArguments;
+					desktopNotification.ShowNotification("Preparation failed", $"The administrative preparation failed with code {result.ErrorCode}. Enable/see logs for details.", IDesktopNotification.Status.ERROR);
+					return result.ErrorCode;
+				}
+				result = CheckStageFolders();
+				if (result.IsNotValid)
+				{
+					this.ExecutionState = ExecutionEvaluation.InvalidArguments;
+					desktopNotification.ShowNotification("Preparation failed", $"The purge folder definition is invalid and returned code {result.ErrorCode}. Enable/see logs for details.", IDesktopNotification.Status.ERROR);
+					return result.ErrorCode;
+				}
+				// Check if purge can be executed
+				this.ExecutionState = CanExecutePurge();
+				if (this.ExecutionState != ExecutionEvaluation.CanExecute)
+				{
+					switch (this.ExecutionState)
+					{
 						case ExecutionEvaluation.InvalidArguments:
-							appLogger.Error("The purge execution cannot be performed due to invalid argument(s)");
+							AppLogger.Error("The purge execution cannot be performed due to invalid argument(s)");
+							desktopNotification.ShowNotification("Purge not executed", "The purge execution cannot be performed due to invalid argument(s)", IDesktopNotification.Status.ERROR);
+							errorCode = ErrorCodes.InvalidArguments;
 							break;
 						case ExecutionEvaluation.TimeSinceLastPurgeTooShort:
-							appLogger.Information("The time since the last purge is too short. The purge was skipped");
+							AppLogger.Information("The time since the last purge is too short. The purge was skipped");
 							desktopNotification.ShowNotification("Purge not executed", "The time since the last purge is too short. The purge was skipped", IDesktopNotification.Status.SKIP);
-							// TODO add desktop notification
+							errorCode = ErrorCodes.ExecutionTooFrequent;
 							break;
 						case ExecutionEvaluation.SkippedByToken:
-							appLogger.Information($"The purge was skipped by a token ({settings.SkipTokenFile}) , manually added to the primary purge folder");
+							AppLogger.Information($"The purge was skipped by a token ({settings.SkipTokenFile}) , manually added to the primary purge folder");
 							desktopNotification.ShowNotification("Purge not executed", $"The purge was skipped by a token ({settings.SkipTokenFile}) , manually added to the primary purge folder", IDesktopNotification.Status.SKIP);
-							// TODO add desktop notification
+							errorCode = ErrorCodes.SkipTokenFound;
 							break;
 						case ExecutionEvaluation.OtherErrors:
-							appLogger.Error("The purge execution cannot be performed due to other errors");
+							AppLogger.Error("The purge execution cannot be performed due to other errors");
 							desktopNotification.ShowNotification("Purge not executed", "The purge execution cannot be performed due to other errors", IDesktopNotification.Status.ERROR);
+							errorCode = ErrorCodes.UnknownError;
 							break;
 						default:
 							break;
 					}
-					return;
+					return errorCode;
 				}
 
-				// Get the initial stage folder
-				string initStageFolder = pathUtils.GetInitStageFolder();
-
 				// Get the list of all stage folders
-				List<string> allStageFolders = pathUtils.GetStageFolders();
+				Result<List<string>> allStageFolders = pathUtils.GetStageFolders();
+				if (allStageFolders.IsNotValid)
+				{
+					return allStageFolders.ErrorCode;
+				}
 
 				// Ensure all intermediate folders exist
-				for (int i = 0; i < allStageFolders.Count; i++)
+				for (int i = 0; i < allStageFolders.Value.Count; i++)
 				{
-					if (!Directory.Exists(allStageFolders[i]))
+					Result createValidation = pathUtils.CreateFolder(allStageFolders.Value[i]);
+					if (createValidation.IsNotValid)
 					{
-						Directory.CreateDirectory(allStageFolders[i]);
+						AppLogger.Error($"Could not create the stage folder '{allStageFolders.Value[i]}' (error code {createValidation.ErrorCode})");
+						desktopNotification.ShowNotification("Purge not executed", $"Could not create the stage folder '{allStageFolders.Value[i]}' (error code {createValidation.ErrorCode})", IDesktopNotification.Status.ERROR);
+						return errorCode;
 					}
 				}
 
 				// Get the list of existing stage folders
-				List<string> stageFolders = allStageFolders.Where(Directory.Exists).ToList();
+				List<string> stageFolders = allStageFolders.Value.Where(Directory.Exists).ToList();
 
 				// Log and delete files in the last folder
 				if (stageFolders.Count > 0)
@@ -106,8 +137,9 @@ namespace PurgeTemp.Controller
 					}
 					catch (Exception ex)
 					{
-						appLogger.Error($"Failed to delete the last folder '{lastStageFolder}': {ex.Message}");
-						return;
+						AppLogger.Error($"Failed to delete the last folder '{lastStageFolder}': {ex.Message}");
+						errorCode = ErrorCodes.CouldNotDeleteLastFolder;
+						return errorCode;
 					}
 				}
 
@@ -127,8 +159,10 @@ namespace PurgeTemp.Controller
 					}
 					catch (Exception ex)
 					{
-						appLogger.Error($"Failed to rename folder '{currentFolder}' to '{nextFolder}': {ex.Message}");
-						return;
+						AppLogger.Error($"Failed to rename folder '{currentFolder}' to '{nextFolder}': {ex.Message}");
+						desktopNotification.ShowNotification("Error during purge", $"Failed to rename folder '{currentFolder}' to '{nextFolder}': {ex.Message}", IDesktopNotification.Status.ERROR);
+						errorCode = ErrorCodes.CouldNotRenameStageFolder;
+						return errorCode;
 					}
 				}
 				// Cleanup empty folders
@@ -146,70 +180,175 @@ namespace PurgeTemp.Controller
 						}
 					}
 				}
-					// Create a new empty first folder
-					try
+				// Create a new empty first folder
+				Result<string> initStageValidation = pathUtils.GetInitStageFolder();
+				if (initStageValidation.IsNotValid)
 				{
-					Directory.CreateDirectory(initStageFolder);
-					WriteLastPurgeToken();
-					appLogger.Information("Purge was executed successfully");
-					desktopNotification.ShowNotification("Purge completed", "Purge was executed successfully", IDesktopNotification.Status.OK);
+					return initStageValidation.ErrorCode;
 				}
-				catch (Exception ex)
+				result = pathUtils.CreateFolder(initStageValidation.Value);
+				if (result.IsNotValid)
 				{
-					appLogger.Error($"Failed to create folder '{initStageFolder}': {ex.Message}");
-					desktopNotification.ShowNotification("Purge not executed", $"Failed to create folder '{initStageFolder}': {ex.Message}", IDesktopNotification.Status.ERROR);
-					return;
+					AppLogger.Error($"Could not create initial purge folder {initStageValidation.Value} (error code {result.ErrorCode})");
+					desktopNotification.ShowNotification("Purge not executed", $"Could not create initial purge folder {initStageValidation.Value} (error code {result.ErrorCode})", IDesktopNotification.Status.ERROR);
+					return result.ErrorCode;
 				}
+				result = WriteLastPurgeToken();
+				if (result.IsNotValid)
+				{
+					AppLogger.Error($"Could not write the last purge token (error code {result.ErrorCode})");
+					desktopNotification.ShowNotification("Purge execution incomplete", $"Could not write the last purge token (error code {result.ErrorCode})", IDesktopNotification.Status.ERROR);
+					return result.ErrorCode;
+				}
+				AppLogger.Information("Purge was executed successfully");
+				desktopNotification.ShowNotification("Purge completed", "Purge was executed successfully", IDesktopNotification.Status.OK);
 			}
 			catch (Exception ex)
 			{
-				appLogger.Error($"An error occurred during purge execution: {ex.Message}");
+				AppLogger.Error($"An error occurred during purge execution: {ex.Message}");
 				desktopNotification.ShowNotification("Purge not executed", $"An error occurred during purge execution: {ex.Message}", IDesktopNotification.Status.ERROR);
-				return;
+				errorCode = ErrorCodes.UnknownError;
+				return errorCode;
 			}
+			return errorCode;
 		}
 
-		public void MaintainAdministrativeFolders()
+		public Result ValidateGeneralSettings()
+		{
+			if (settings.StageVersions < 1)
+			{
+				AppLogger.Error($"The number of stages cannot be zero or negative");
+				return Result<string>.Fail(ErrorCodes.InvalidNumberOfStages);
+			}
+			if (settings.FileLogAmountThreshold < 0)
+			{
+				AppLogger.Error($"The number of files to skip on purge logging cannot be negative");
+				return Result<string>.Fail(ErrorCodes.InvalidFileLogAmount);
+			}
+			return Result.Success();
+		}
+
+		public Result MaintainAdministrativeFolders()
 		{
 			string configFolder = pathUtils.GetPath(settings.ConfigFolder);
-			if (!Directory.Exists(configFolder))
+			Result configFolderValidation = CheckAdministrativeFolder(configFolder);
+			if (configFolderValidation.IsNotValid)
 			{
-				Directory.CreateDirectory(configFolder);
+				return Result.Fail(configFolderValidation.ErrorCode);
 			}
-			string tempFolder = pathUtils.GetPath(settings.TempFolder);
-			if (!Directory.Exists(tempFolder))
+			Result result = pathUtils.CreateFolder(configFolder, true);
+			if (result.IsNotValid)
 			{
-				Directory.CreateDirectory(tempFolder);
+				return Result.Fail(result.ErrorCode);
+			}
+
+			string tempFolder = pathUtils.GetPath(settings.TempFolder);
+			Result tempFolderValidation = CheckAdministrativeFolder(tempFolder);
+			if (tempFolderValidation.IsNotValid)
+			{
+				return Result.Fail(tempFolderValidation.ErrorCode);
+			}
+			result = pathUtils.CreateFolder(tempFolder, true);
+			if (result.IsNotValid)
+			{
+				return Result.Fail(result.ErrorCode);
 			}
 			if (settings.LogEnabled)
 			{
 				string logBaseFolder = pathUtils.GetPath(settings.LoggingFolder);
-				if (!Directory.Exists(logBaseFolder))
+				Result logFolderValidation = CheckAdministrativeFolder(logBaseFolder);
+				if (logFolderValidation.IsNotValid)
 				{
-					Directory.CreateDirectory(logBaseFolder);
+					return Result.Fail(logFolderValidation.ErrorCode);
+				}
+				result = pathUtils.CreateFolder(logBaseFolder, true);
+				if (result.IsNotValid)
+				{
+					return Result.Fail(result.ErrorCode);
 				}
 			}
+			return Result.Success();
+		}
+
+		private Result CheckAdministrativeFolder(string folder)
+		{
+			Result adminFolderValidation = pathUtils.IsValidFolderName(folder, false);
+			if (adminFolderValidation.IsNotValid)
+			{
+				return Result.Fail(adminFolderValidation.ErrorCode);
+			}
+			Result<List<string>> allStageFolders = pathUtils.GetStageFolders();
+			if (allStageFolders.IsNotValid)
+			{
+				return Result.Fail(allStageFolders.ErrorCode);
+			}
+			string normalizedPath = Path.GetFullPath(folder).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+
+			// Check if the path matches any of the stage folders
+			if (allStageFolders.Value.Contains(normalizedPath))
+			{
+				AppLogger.Error($"Specified administrative path would lead to a conflict with a defined stage folder: " + normalizedPath);
+				return Result.Fail(ErrorCodes.AdministrativePathConflictsWithStagePath);
+			}
+			return Result.Success();
+		}
+
+		private Result CheckStageFolders()
+		{
+			Result<List<string>> allStageFolders = pathUtils.GetStageFolders();
+			if (allStageFolders.IsNotValid)
+			{
+				return Result.Fail(allStageFolders.ErrorCode);
+			}
+			foreach (string stageFolder in allStageFolders.Value)
+			{
+				Result stageValidation = pathUtils.IsValidFolderName(stageFolder, false);
+				if (stageValidation.IsNotValid)
+				{
+					if (stageValidation.ErrorCode == ErrorCodes.PathIsSystemDirectory)
+					{
+						AppLogger.Error($"Specified stage folder path would lead to a protected system folder: " + stageFolder);
+						return Result.Fail(ErrorCodes.StageFolderIsSystemDirectory);
+					}
+					else if (stageValidation.ErrorCode == ErrorCodes.ReservedNameAsFolderName)
+					{
+						AppLogger.Error($"Specified stage folder path would lead to a folder with a reserved name: " + stageFolder);
+						return Result.Fail(ErrorCodes.StageFolderHasReservedFolderName);
+					}
+					else
+					{
+						AppLogger.Error($"Specified stage folder path is invalid:" + stageFolder);
+						return Result.Fail(stageValidation.ErrorCode);
+					}
+				}
+			}
+			return Result.Success();
 		}
 
 		public ExecutionEvaluation CanExecutePurge()
 		{
 			try
 			{
-				string initStageFolder = pathUtils.GetInitStageFolder();
-				string skipTokenPath = pathUtils.GetPath(initStageFolder, settings.SkipTokenFile);
+				Result<string> initStageValidation = pathUtils.GetInitStageFolder();
+				if (initStageValidation.IsNotValid)
+				{
+					return ExecutionEvaluation.InvalidArguments;
+				}
+				string skipTokenPath = pathUtils.GetPath(initStageValidation.Value, settings.SkipTokenFile);
 				string lastPurgeToken = pathUtils.GetPath(settings.ConfigFolder, settings.StagingTimestampFile);
 				int numberOfSecondsBetweenPurge = settings.StagingDelaySeconds;
 
 				// Check if any path is null
-				if (skipTokenPath == null || lastPurgeToken == null || initStageFolder == null)
+				if (skipTokenPath == null || lastPurgeToken == null || initStageValidation.Value == null)
 				{
+					AppLogger.Error(string.Format("At least one mandatory argument was not defined:  skipTokenPath:{0}, lastPurgeToken:{1}, initStageFolder:{2}", skipTokenPath, lastPurgeToken, initStageValidation.Value));
 					return ExecutionEvaluation.InvalidArguments;
 				}
 
 				// Check if the skip token file exists in the initial temp folder
 				if (File.Exists(skipTokenPath))
 				{
-					appLogger.Information("Purge skipped due to skip token file presence.");
+					AppLogger.Information("Purge skipped due to skip token file presence.");
 					return ExecutionEvaluation.SkippedByToken;
 				}
 
@@ -225,18 +364,19 @@ namespace PurgeTemp.Controller
 												out DateTime lastPurgeTime))
 					{
 						// Calculate the time elapsed since the last purge
-						TimeSpan timeSinceLastPurge = DateTime.Now - lastPurgeTime;
+						DateTime now = DateTime.Now;
+						TimeSpan timeSinceLastPurge = now - lastPurgeTime;
 
 						// Check if the time elapsed since the last purge is greater than the defined delay
 						if (timeSinceLastPurge.TotalSeconds < numberOfSecondsBetweenPurge)
 						{
-							appLogger.Information("Purge skipped due to insufficient time elapsed since last purge.");
+							AppLogger.Information("Purge skipped due to insufficient time elapsed since last purge. Last purge: " + lastPurgeTimestamp + ", Now: " + now.ToString(settings.TimeStampFormat) + ", Min. seconds: " + numberOfSecondsBetweenPurge + ", Actual seconds: " + timeSinceLastPurge.TotalSeconds);
 							return ExecutionEvaluation.TimeSinceLastPurgeTooShort;
 						}
 					}
 					else
 					{
-						appLogger.Error("Failed to parse last purge timestamp. Please checkt the settings and manually delete or fix the token, defined at: " + lastPurgeToken);
+						AppLogger.Error("Failed to parse last purge timestamp. Please checkt the settings and manually delete or fix the token, defined at: " + lastPurgeToken);
 						return ExecutionEvaluation.InvalidArguments;
 					}
 				}
@@ -244,15 +384,14 @@ namespace PurgeTemp.Controller
 				// If all conditions are met, perform the purge
 				return ExecutionEvaluation.CanExecute;
 			}
-			catch (Exception ex) 
+			catch (Exception ex)
 			{
-				appLogger.Error($"An unknown error occurred: {ex.Message}");
+				AppLogger.Error($"An unknown error occurred: {ex.Message}");
 				return ExecutionEvaluation.OtherErrors;
 			}
-
 		}
 
-		public void WriteLastPurgeToken()
+		public Result WriteLastPurgeToken()
 		{
 			try
 			{
@@ -267,9 +406,10 @@ namespace PurgeTemp.Controller
 			}
 			catch (Exception ex)
 			{
-				appLogger.Error($"Failed to write last purge token: {ex.Message}");
+				AppLogger.Error($"Failed to write last purge token: {ex.Message}");
+				return Result.Fail(ErrorCodes.CouldNotCreateLastPurgeToken);
 			}
+			return Result.Success();
 		}
-
 	}
 }

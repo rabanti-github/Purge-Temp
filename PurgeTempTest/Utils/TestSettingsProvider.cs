@@ -17,9 +17,11 @@ namespace PurgeTempTest.Utils
 			string jsonTemplate = @"
         {
             ""AppSettings"": {
+                ""AppendNumberOnFirstStage"": true,
+                ""ConfigFolder"": ""./config"",
+                ""FileLogAmountThreshold"": 1000^,
                 ""StageVersions"": 4,
                 ""StageNamePrefix"": ""purge-temp"",
-                ""AppendNumberOnFirstStage"": true,
                 ""StageVersionDelimiter"": ""-"",
                 ""StagingDelaySeconds"": 21600,
                 ""ShowPurgeMessage"": false,
@@ -31,12 +33,10 @@ namespace PurgeTempTest.Utils
                 ""LogAllFiles"": false,
                 ""StagingTimestampFile"": ""./last-purge.txt"",
                 ""StageRootFolder"": ""C:\\purge-temp"",
-                ""ConfigFolder"": ""./config"",
                 ""TempFolder"": ""./temp"",
                 ""SkipTokenFile"": ""./SKIP.txt"",
                 ""TimeStampFormat"": ""yyyy-MM-dd HH:mm:ss"",
-                ""StageLastNameSuffix"": ""LAST"",
-                ""FileLogAmountThreshold"": 1000
+                ""StageLastNameSuffix"": ""LAST""
             }
         }";
 
@@ -51,12 +51,20 @@ namespace PurgeTempTest.Utils
 			jsonSettings["AppSettings"]["TempFolder"] = $"{tempFolderPath}\\temp";
 			jsonSettings["AppSettings"]["SkipTokenFile"] = $"{tempFolderPath}\\SKIP.txt";
 
+
 			// Apply any additional overrides
 			if (overrides != null)
 			{
-				foreach (var kvp in overrides)
+				foreach (KeyValuePair<string, string> kvp in overrides)
 				{
-					jsonSettings["AppSettings"][kvp.Key] = kvp.Value;
+					if (kvp.Key.StartsWith("AppSettings:"))
+					{
+						jsonSettings["AppSettings"][kvp.Key.Substring(12)] = kvp.Value;
+					}
+					else
+					{
+						jsonSettings["AppSettings"][kvp.Key] = kvp.Value;
+					}
 				}
 			}
 
@@ -67,7 +75,6 @@ namespace PurgeTempTest.Utils
 			IConfiguration configuration = new ConfigurationBuilder()
 				.AddJsonStream(new MemoryStream(System.Text.Encoding.UTF8.GetBytes(updatedJson)))
 				.Build();
-
 			return new Settings(configuration);
 		}
 	}

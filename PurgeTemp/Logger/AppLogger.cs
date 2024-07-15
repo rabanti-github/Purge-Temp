@@ -16,6 +16,8 @@ namespace PurgeTemp.Logger
 	/// </summary>
 	public class AppLogger : IAppLogger
 	{
+		public const string LOGFILE_NAME_TEMPLATE = "appLog_";
+		public const string LOGFILE_EXTENSION = ".txt";
 		private readonly ISettings settings;
 		private readonly PathUtils pathUtils;
 
@@ -38,7 +40,7 @@ namespace PurgeTemp.Logger
 			{
 				// Configure file logging if enabled
 				string logFolder = pathUtils.GetPath(settings.LoggingFolder);
-				string logFilePath = Path.Combine(logFolder, "appLog_.txt");
+				string logFilePath = Path.Combine(logFolder, LOGFILE_NAME_TEMPLATE + LOGFILE_EXTENSION);
 
 				loggerConfiguration.WriteTo.File(
 					logFilePath,

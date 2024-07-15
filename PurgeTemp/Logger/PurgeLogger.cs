@@ -16,6 +16,8 @@ namespace PurgeTemp.Logger
 	/// </summary>
 	public class PurgeLogger : IPurgeLogger
 	{
+		public const string LOGFILE_NAME_TEMPLATE = "purgeLog_";
+		public const string LOGFILE_EXTENSION = ".txt";
 		private readonly ISettings settings;
 		private readonly PathUtils pathUtils;
 		private ILogger logger;
@@ -37,7 +39,7 @@ namespace PurgeTemp.Logger
 			{
 				// Configure file logging if enabled
 				string logFolder = pathUtils.GetPath(settings.LoggingFolder);
-				string logFilePath = Path.Combine(logFolder, "purgeLog_.txt");
+				string logFilePath = Path.Combine(logFolder, LOGFILE_NAME_TEMPLATE + LOGFILE_EXTENSION);
 
 				loggerConfiguration.WriteTo.File(
 					logFilePath,
@@ -57,38 +59,52 @@ namespace PurgeTemp.Logger
 			logger = loggerConfiguration.CreateLogger();
 		}
 
-
 		public void PurgeInfo(string source, string file)
 		{
-			Info(source, null, false, file);
+			Info(source, null, true, file);
 		}
 
 		public void MoveInfo(string source, string target, string file)
 		{
-			Info(source, target, true, file);
+			Info(source, target, false, file);
 		}
 
-		public void SkipMoveInfo(string source, string target, int skippedFiles)
+		public void SkipMoveInfo(string source, string target, int skippedFiles, bool skipAll = false)
 		{
-			SkipInfo(source, target, false, skippedFiles);
+			SkipInfo(source, target, false, skippedFiles, skipAll);
 		}
 
-		public void SkipPurgeInfo(string source, int skippedFiles)
+		public void SkipPurgeInfo(string source, int skippedFiles, bool skipAll = false)
 		{
-			SkipInfo(source, null, true, skippedFiles);
+			SkipInfo(source, null, true, skippedFiles, skipAll);
 		}
 
-		public void SkipInfo(string source, string destination, bool isPurged, int skippedFiles)
+		public void SkipInfo(string source, string destination, bool isPurged, int skippedFiles, bool skipAll = false)
 		{
 			string action = isPurged ? "P" : "M";
 			string target = isPurged ? string.Empty : destination;
+			string skipAllToken = skipAll ? string.Empty : "additional ";
 			if (isPurged)
 			{
-				logger.Information($"{action}\t{source} (Skipped {skippedFiles} files)");
+				if (skippedFiles == 1)
+				{
+					logger.Information($"{action}\t{source} (Deleted one {skipAllToken}file -> threshold of files to log reached)");
+				}
+				else
+				{
+					logger.Information($"{action}\t{source} (Deleted {skipAllToken}{skippedFiles} files -> threshold of files to log reached)");
+				}
 			}
 			else
 			{
-				logger.Information($"{action}\t{source} => {target} (Skipped {skippedFiles} files)");
+				if (skippedFiles == 1)
+				{
+					logger.Information($"{action}\t{source} => {target} (Moved one {skipAllToken}file -> threshold of files to log reached)");
+				}
+				else
+				{
+					logger.Information($"{action}\t{source} => {target} (Moved {skipAllToken}{skippedFiles} files -> threshold of files to log reached)");
+				}
 			}
 		}
 
@@ -103,7 +119,7 @@ namespace PurgeTemp.Logger
 				logEntry += $" => {target}";
 			}
 
-			logger.Information(logEntry);
+			logger.Information(logEntry + "\t" + file);
 		}
 
 	}

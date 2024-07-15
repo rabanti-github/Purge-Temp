@@ -24,6 +24,14 @@ namespace PurgeTemp.Controller
 		{
 			this.pathUtils = pathUtils;
 		}
+		[Option('a', "append-number-on-first-stage", Required = false, HelpText = "If true, the stage number ia appended to the first stage folder name.")]
+		public bool? AppendNumberOnFirstStage { get; set; }
+
+		[Option('c', "config-folder", Required = false, HelpText = "Config folder.")]
+		public string ConfigFolder { get; set; }
+
+		[Option('q', "file-log-amount-threshold", Required = false, HelpText = "File log amount threshold. If more than this number of files are in a stage folder, only the remaining number will be logged on purge after exceeding this number. The value cannot be negative.")]
+		public int? FileLogAmountThreshold { get; set; }
 
 		[Option('s', "settings-file", Required = false, HelpText = "Path to a settings file that overrides the default settings. CLI arguments may override particular settings of that file.")]
 		public string SettingsFile { get; set; }
@@ -31,14 +39,11 @@ namespace PurgeTemp.Controller
 		[Option('h', "help", Required = false, HelpText = "Display this help screen.")]
 		public bool Help { get; set; }
 
-		[Option('v', "stage-versions", Required = false, HelpText = "Number of stage versions.")]
+		[Option('v', "stage-versions", Required = false, HelpText = "Number of stage versions. If 1, only one folder without a last folder will be used. The value cannot be negative or zero.")]
 		public int? StageVersions { get; set; }
 
 		[Option('p', "stage-name-prefix", Required = false, HelpText = "Prefix for stage folder names.")]
 		public string StageNamePrefix { get; set; }
-
-		[Option('a', "append-number-on-first-stage", Required = false, HelpText = "If true, the stage number ia appended to the first stage folder name.")]
-		public bool? AppendNumberOnFirstStage { get; set; }
 
 		[Option('d', "stage-version-delimiter", Required = false, HelpText = "Delimiter for stage version numbers.")]
 		public string StageVersionDelimiter { get; set; }
@@ -73,8 +78,6 @@ namespace PurgeTemp.Controller
 		[Option('r', "stage-root-folder", Required = false, HelpText = "Stage root folder.")]
 		public string StageRootFolder { get; set; }
 
-		[Option('c', "config-folder", Required = false, HelpText = "Config folder.")]
-		public string ConfigFolder { get; set; }
 
 		[Option('z', "temp-folder", Required = false, HelpText = "Temporary folder.")]
 		public string TempFolder { get; set; }
@@ -91,8 +94,7 @@ namespace PurgeTemp.Controller
 		[Option('u', "remove-empty-stage-folders", Required = false, HelpText = "Removes intermediate stage folders if empty.")]
 		public bool? RemoveEmptyStageFolders { get; set; }
 
-		[Option('q', "file-log-amount-threshold", Required = false, HelpText = "File log amount threshold. If more than this number of files are in a stage folder, only the remaining number will be logged on purge after exceeding this number.")]
-		public int? FileLogAmountThreshold { get; set; }
+
 
 
 		public Settings ParseSetting(Settings defaultSettings, IConfiguration configuration, string[] args)
@@ -121,79 +123,78 @@ namespace PurgeTemp.Controller
 			if (opts != null)
 			{
 				if (opts.StageVersions.HasValue)
-				   defaultSettings.OverrideSetting("AppSettings:StageVersions", opts.StageVersions.Value);
+					defaultSettings.OverrideSetting(Settings.Keys.StageVersions, opts.StageVersions.Value);
 
-			   if (!string.IsNullOrEmpty(opts.StageNamePrefix))
-				   defaultSettings.OverrideSetting("AppSettings:StageNamePrefix", opts.StageNamePrefix);
+				if (!string.IsNullOrEmpty(opts.StageNamePrefix))
+					defaultSettings.OverrideSetting(Settings.Keys.StageNamePrefix, opts.StageNamePrefix);
 
-			   if (opts.AppendNumberOnFirstStage.HasValue)
-				   defaultSettings.OverrideSetting("AppSettings:AppendNumberOnFirstStage", opts.AppendNumberOnFirstStage.Value);
+				if (opts.AppendNumberOnFirstStage.HasValue)
+					defaultSettings.OverrideSetting(Settings.Keys.AppendNumberOnFirstStage, opts.AppendNumberOnFirstStage.Value);
 
-			   if (!string.IsNullOrEmpty(opts.StageVersionDelimiter))
-				   defaultSettings.OverrideSetting("AppSettings:StageVersionDelimiter", opts.StageVersionDelimiter);
+				if (!string.IsNullOrEmpty(opts.StageVersionDelimiter))
+					defaultSettings.OverrideSetting(Settings.Keys.StageVersionDelimiter, opts.StageVersionDelimiter);
 
-			   if (opts.StagingDelaySeconds.HasValue)
-				   defaultSettings.OverrideSetting("AppSettings:StagingDelaySeconds", opts.StagingDelaySeconds.Value);
+				if (opts.StagingDelaySeconds.HasValue)
+					defaultSettings.OverrideSetting(Settings.Keys.StagingDelaySeconds, opts.StagingDelaySeconds.Value);
 
-			   if (opts.ShowPurgeMessage.HasValue)
-				   defaultSettings.OverrideSetting("AppSettings:ShowPurgeMessage", opts.ShowPurgeMessage.Value);
+				if (opts.ShowPurgeMessage.HasValue)
+					defaultSettings.OverrideSetting(Settings.Keys.ShowPurgeMessage, opts.ShowPurgeMessage.Value);
 
-			   if (!string.IsNullOrEmpty(opts.PurgeMessageLogoFile))
-				   defaultSettings.OverrideSetting("AppSettings:PurgeMessageLogoFile", opts.PurgeMessageLogoFile);
+				if (!string.IsNullOrEmpty(opts.PurgeMessageLogoFile))
+					defaultSettings.OverrideSetting(Settings.Keys.PurgeMessageLogoFile, opts.PurgeMessageLogoFile);
 
-			   if (!string.IsNullOrEmpty(opts.LoggingFolder))
-				   defaultSettings.OverrideSetting("AppSettings:LoggingFolder", opts.LoggingFolder);
+				if (!string.IsNullOrEmpty(opts.LoggingFolder))
+					defaultSettings.OverrideSetting(Settings.Keys.LoggingFolder, opts.LoggingFolder);
 
-			   if (opts.LogEnabled.HasValue)
-				   defaultSettings.OverrideSetting("AppSettings:LogEnabled", opts.LogEnabled.Value);
+				if (opts.LogEnabled.HasValue)
+					defaultSettings.OverrideSetting(Settings.Keys.LogEnabled, opts.LogEnabled.Value);
 
-			   if (opts.LogRotationBytes.HasValue)
-				   defaultSettings.OverrideSetting("AppSettings:LogRotationBytes", opts.LogRotationBytes.Value);
+				if (opts.LogRotationBytes.HasValue)
+					defaultSettings.OverrideSetting(Settings.Keys.LogRotationBytes, opts.LogRotationBytes.Value);
 
-			   if (opts.LogRotationVersions.HasValue)
-				   defaultSettings.OverrideSetting("AppSettings:LogRotationVersions", opts.LogRotationVersions.Value);
+				if (opts.LogRotationVersions.HasValue)
+					defaultSettings.OverrideSetting(Settings.Keys.LogRotationVersions, opts.LogRotationVersions.Value);
 
-			   if (opts.LogAllFiles.HasValue)
-				   defaultSettings.OverrideSetting("AppSettings:LogAllFiles", opts.LogAllFiles.Value);
+				if (opts.LogAllFiles.HasValue)
+					defaultSettings.OverrideSetting(Settings.Keys.LogAllFiles, opts.LogAllFiles.Value);
 
-			   if (!string.IsNullOrEmpty(opts.StagingTimestampFile))
-				   defaultSettings.OverrideSetting("AppSettings:StagingTimestampFile", opts.StagingTimestampFile);
+				if (!string.IsNullOrEmpty(opts.StagingTimestampFile))
+					defaultSettings.OverrideSetting(Settings.Keys.StagingTimestampFile, opts.StagingTimestampFile);
 
-			   if (!string.IsNullOrEmpty(opts.StageRootFolder))
-				   defaultSettings.OverrideSetting("AppSettings:StageRootFolder", opts.StageRootFolder);
+				if (!string.IsNullOrEmpty(opts.StageRootFolder))
+					defaultSettings.OverrideSetting(Settings.Keys.StageRootFolder, opts.StageRootFolder);
 
-			   if (!string.IsNullOrEmpty(opts.ConfigFolder))
-				   defaultSettings.OverrideSetting("AppSettings:ConfigFolder", opts.ConfigFolder);
+				if (!string.IsNullOrEmpty(opts.ConfigFolder))
+					defaultSettings.OverrideSetting(Settings.Keys.ConfigFolder, opts.ConfigFolder);
 
-			   if (!string.IsNullOrEmpty(opts.TempFolder))
-				   defaultSettings.OverrideSetting("AppSettings:TempFolder", opts.TempFolder);
+				if (!string.IsNullOrEmpty(opts.TempFolder))
+					defaultSettings.OverrideSetting(Settings.Keys.TempFolder, opts.TempFolder);
 
-			   if (!string.IsNullOrEmpty(opts.SkipTokenFile))
-				   defaultSettings.OverrideSetting("AppSettings:SkipTokenFile", opts.SkipTokenFile);
+				if (!string.IsNullOrEmpty(opts.SkipTokenFile))
+					defaultSettings.OverrideSetting(Settings.Keys.SkipTokenFile, opts.SkipTokenFile);
 
-			   if (!string.IsNullOrEmpty(opts.TimeStampFormat))
-				   defaultSettings.OverrideSetting("AppSettings:TimeStampFormat", opts.TimeStampFormat);
+				if (!string.IsNullOrEmpty(opts.TimeStampFormat))
+					defaultSettings.OverrideSetting(Settings.Keys.TimeStampFormat, opts.TimeStampFormat);
 
-			   if (!string.IsNullOrEmpty(opts.StageLastNameSuffix))
-				   defaultSettings.OverrideSetting("AppSettings:StageLastNameSuffix", opts.StageLastNameSuffix);
+				if (!string.IsNullOrEmpty(opts.StageLastNameSuffix))
+					defaultSettings.OverrideSetting(Settings.Keys.StageLastNameSuffix, opts.StageLastNameSuffix);
 
 				if (opts.RemoveEmptyStageFolders.HasValue)
-					defaultSettings.OverrideSetting("AppSettings:RemoveEmptyStageFolders", opts.RemoveEmptyStageFolders);
+					defaultSettings.OverrideSetting(Settings.Keys.RemoveEmptyStageFolders, opts.RemoveEmptyStageFolders);
 
 				if (opts.FileLogAmountThreshold.HasValue)
-				   defaultSettings.OverrideSetting("AppSettings:FileLogAmountThreshold", opts.FileLogAmountThreshold.Value);
-		   }
+					defaultSettings.OverrideSetting(Settings.Keys.FileLogAmountThreshold, opts.FileLogAmountThreshold.Value);
+			}
 			return defaultSettings;
 		}
 
 		private void DisplayHelp<T>(ParserResult<T> parserResult, string[] args)
 		{
-			HelpText helpText = HelpText.AutoBuild(parserResult, h => {return h;}, e => e);
+			HelpText helpText = HelpText.AutoBuild(parserResult, h => { return h; }, e => e);
 			helpText.AdditionalNewLineAfterOption = false;
 			helpText.Heading = $"{AssemblyUtils.GetAssemblyName()} v{AssemblyUtils.GetVersion()}";
 			helpText.Copyright = AssemblyUtils.GetCopyright();
 			helpText.AddPreOptionsLine(GetCLIPrefix());
-			//helpText.AddPreOptionsLine( "This is a sample application to demonstrate command line parsing.");
 			Console.WriteLine(helpText);
 		}
 

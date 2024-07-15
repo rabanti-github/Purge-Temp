@@ -6,6 +6,7 @@
  */
 
 using PurgeTemp.Interface;
+using PurgeTemp.Logger;
 
 namespace PurgeTemp.Utils
 {
@@ -15,13 +16,15 @@ namespace PurgeTemp.Utils
 	public class FileUtils
 	{
 		private readonly ISettings settings;
-		private	readonly IPurgeLogger purgeLogger;
+		private readonly ILoggerFactory loggerFactory;
+		private IPurgeLogger? purgeLogger;
+		private IPurgeLogger PurgeLogger => purgeLogger ??= loggerFactory.CreatePurgeLogger();
 
-		public FileUtils(ISettings settings, IPurgeLogger purgeLogger)
+		public FileUtils(ISettings settings, ILoggerFactory loggerFactory)
 		{
 			this.settings = settings;
-			this.purgeLogger = purgeLogger;
-		}	
+			this.loggerFactory = loggerFactory;
+		}
 
 		public void LogFilesToProcess(List<string> folders, string currentFolder)
 		{
@@ -37,31 +40,25 @@ namespace PurgeTemp.Utils
 			// Recursively determine all files in the current folder
 			List<string> allFiles = Directory.GetFiles(currentFolder, "*", SearchOption.AllDirectories).ToList();
 
-			// Log files based on the threshold and position of the current folder
 			int filesLogged = 0;
-			while (filesLogged < allFiles.Count)
+			foreach (string file in allFiles)
 			{
-				// Determine the number of files to log in this batch
-				int filesToLog = Math.Min(fileLogAmountThreshold, allFiles.Count - filesLogged);
-
-				// Log each file in the batch
-				for (int i = filesLogged; i < filesLogged + filesToLog; i++)
+				if (filesLogged >= fileLogAmountThreshold)
 				{
-					string file = allFiles[i];
-					if (isLastFolder)
-					{
-						purgeLogger.PurgeInfo(currentFolder, file);
-					}
-					else
-					{
-						// Determine the target folder for moving files
-						string targetFolder = folders[currentIndex + 1];
-
-						purgeLogger.MoveInfo(currentFolder, targetFolder, file);
-					}
+					break;
 				}
+				if (isLastFolder)
+				{
+					PurgeLogger.PurgeInfo(currentFolder, file.Substring(currentFolder.Length - 1));
+				}
+				else
+				{
+					// Determine the target folder for moving files
+					string targetFolder = folders[currentIndex + 1];
 
-				filesLogged += filesToLog;
+					PurgeLogger.MoveInfo(currentFolder, targetFolder, file.Substring(targetFolder.Length - 1));
+				}
+				filesLogged++;
 			}
 
 			// Log a single entry indicating that remaining files were not logged due to threshold exceedance
@@ -70,12 +67,26 @@ namespace PurgeTemp.Utils
 			{
 				if (isLastFolder)
 				{
-					purgeLogger.SkipPurgeInfo(currentFolder, skippedFiles);
+					if (fileLogAmountThreshold == 0)
+					{
+						PurgeLogger.SkipPurgeInfo(currentFolder, skippedFiles, true);
+					}
+					else
+					{
+						PurgeLogger.SkipPurgeInfo(currentFolder, skippedFiles);
+					}
 				}
 				else
 				{
 					string targetFolder = folders[currentIndex + 1];
-					purgeLogger.SkipMoveInfo(currentFolder, targetFolder, skippedFiles);
+					if (fileLogAmountThreshold == 0)
+					{
+						PurgeLogger.SkipMoveInfo(currentFolder, targetFolder, skippedFiles, true);
+					}
+					else
+					{
+						PurgeLogger.SkipMoveInfo(currentFolder, targetFolder, skippedFiles);
+					}
 				}
 			}
 		}
