@@ -64,6 +64,7 @@ public class Program
 	public static PurgeController GetTestEnvironment(Settings testSetting)
 	{
 		string[] args = Array.Empty<string>();
+		testSetting.TestEnvironmentMessage = "TEST-ENVIRONMENT : ";
 		return GetTestEnvironment(testSetting, args);
 	}
 

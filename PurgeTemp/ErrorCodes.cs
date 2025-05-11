@@ -73,12 +73,29 @@ namespace PurgeTemp
 		/// The number of files to log on purge was below 0
 		/// </summary>
 		public const int InvalidFileLogAmount = 110;
-
-		// Invalid Values: General error codes (200-299)
 		/// <summary>
-		/// No execution due to an unknown error.
+		/// The number of bytes for the log rotation was below 0
 		/// </summary>
-		public const int UnknownError = 200;
+		public const int InvalidLogRotationBytes = 111;
+		/// <summary>
+		/// The number of log files to retain in the log rotation was below 0
+		/// </summary>
+		public const int InvalidLogRotationVersions = 112;
+		/// <summary>
+		/// The defined filename of the skip token file was invalid
+		/// </summary>
+		public const int InvalidSkipTokenFile = 113;
+        /// <summary>
+        /// The defined filename of the logo file, shown in purge notifications, was invalid
+        /// </summary>
+        public const int InvalidPurgeMessageLogoFile = 114;
+
+
+        // Invalid Values: General error codes (200-299)
+        /// <summary>
+        /// No execution due to an unknown error.
+        /// </summary>
+        public const int UnknownError = 200;
 
 		/// <summary>
 		/// The last folder could not be deleted.

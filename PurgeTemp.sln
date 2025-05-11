@@ -5,7 +5,7 @@ VisualStudioVersion = 17.10.34818.151
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PurgeTemp", "PurgeTemp\PurgeTemp.csproj", "{A7F583BE-9753-4208-8782-12E39E426CDB}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PurgeTempTest", "PurgeTempTest\PurgeTempTest.csproj", "{7A1A72A6-EE9E-460B-9C7D-6075F8A69C08}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PurgeTempTest", "PurgeTempTest\PurgeTempTest.csproj", "{7A1A72A6-EE9E-460B-9C7D-6075F8A69C08}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

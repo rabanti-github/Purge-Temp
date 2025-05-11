@@ -43,8 +43,8 @@ namespace PurgeTempTest
 
 			// Write test files into the initial folder
 
-			string testFilePath1 = FileUtils.CreateFile(stageFolder1, "testfile1.txt", "This is test file 1.");
-			string testFilePath2 = FileUtils.CreateFile(stageFolder1, "testfile2.txt", "This is test file 2.");
+			string testFilePath1 = TestFileUtils.CreateFile(stageFolder1, "testfile1.txt", "This is test file 1.");
+			string testFilePath2 = TestFileUtils.CreateFile(stageFolder1, "testfile2.txt", "This is test file 2.");
 
 			// Simulate delay
 			Thread.Sleep(testDelaySeconds * 1000);
@@ -83,8 +83,8 @@ namespace PurgeTempTest
 			purgeController.ExecutePurge();
 			Assert.Empty(Directory.GetFiles(stageFolder1));
 
-			string testFilePath1 = FileUtils.CreateFile(stageFolder1, "testfile1.txt", "This is test file 1.");
-			string skipFilePath = FileUtils.CreateFile(stageFolder1, givenSkipFile, "No content");
+			string testFilePath1 = TestFileUtils.CreateFile(stageFolder1, "testfile1.txt", "This is test file 1.");
+			string skipFilePath = TestFileUtils.CreateFile(stageFolder1, givenSkipFile, "No content");
 
 			Thread.Sleep(testDelaySeconds * 1000);
 

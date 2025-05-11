@@ -18,13 +18,47 @@ namespace PurgeTemp.Utils
 		private readonly ISettings settings;
 		private readonly ILoggerFactory loggerFactory;
 		private IPurgeLogger? purgeLogger;
-		private IPurgeLogger PurgeLogger => purgeLogger ??= loggerFactory.CreatePurgeLogger();
+        private IAppLogger? appLogger;
+        private IPurgeLogger PurgeLogger => purgeLogger ??= loggerFactory.CreatePurgeLogger();
+        private IAppLogger AppLogger => appLogger ??= loggerFactory.CreateAppLogger();
 
-		public FileUtils(ISettings settings, ILoggerFactory loggerFactory)
+        public FileUtils(ISettings settings, ILoggerFactory loggerFactory)
 		{
 			this.settings = settings;
 			this.loggerFactory = loggerFactory;
 		}
+
+		public bool IsValidFileName(string fileName)
+		{
+            if (string.IsNullOrEmpty(fileName))
+            {
+                AppLogger.Warning($"A filename cannot be null or empty");
+				return false;
+            }
+			string path = fileName.Replace('/', Path.DirectorySeparatorChar);
+			string[] tokens = fileName.Split(Path.DirectorySeparatorChar);
+			string lastToken = tokens[tokens.Length - 1];
+            if (string.IsNullOrEmpty(lastToken))
+            {
+                AppLogger.Warning($"A filename cannot end with a path separator (given: '{fileName}').");
+                return false;
+            }
+            else if (lastToken.IndexOfAny(Path.GetInvalidFileNameChars()) != -1)
+            {
+                AppLogger.Warning($"Invalid characters in filename '{lastToken}' detected.");
+                return false;
+            }
+            else if (PathUtils.ReservedNames.Contains(lastToken))
+            {
+                AppLogger.Warning($"Reserved name '{lastToken}' detected as filename.");
+                return false;
+            }
+			else if (lastToken.EndsWith(' ') || lastToken.EndsWith('.')){
+                AppLogger.Warning($"A filename cannot end with a space or dot (given: '{lastToken}').");
+                return false;
+            }
+			return true;
+        }
 
 		public void LogFilesToProcess(List<string> folders, string currentFolder)
 		{
@@ -43,7 +77,7 @@ namespace PurgeTemp.Utils
 			int filesLogged = 0;
 			foreach (string file in allFiles)
 			{
-				if (filesLogged >= fileLogAmountThreshold)
+				if (fileLogAmountThreshold > -1 && filesLogged >= fileLogAmountThreshold)
 				{
 					break;
 				}

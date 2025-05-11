@@ -33,10 +33,6 @@ namespace PurgeTemp.Logger
 				return;
 			}
 			string icon;
-			if (!string.IsNullOrEmpty(settings.PurgeMessageLogoFile))
-			{
-				icon = pathUtils.GetPath(settings.PurgeMessageLogoFile);
-			}
 			switch (status)
 			{
 				case Status.OK:
@@ -52,10 +48,26 @@ namespace PurgeTemp.Logger
 					icon = "trashcan128.png";
 					break;
 			}
-			String iconPath = pathUtils.GetPath("./resources/" + icon);
+			String iconPath = null;
+			if (!string.IsNullOrEmpty(settings.PurgeMessageLogoFile))
+			{
+				string path = pathUtils.GetPath(settings.PurgeMessageLogoFile);
+				if (File.Exists(path))
+				{
+					iconPath = path;
+				}
+				else
+				{
+					iconPath = pathUtils.GetPath("./resources/" + icon);
+				}
+			}
+			else
+			{
+				iconPath = pathUtils.GetPath("./resources/" + icon);
+			}
 			new ToastContentBuilder()
 					.AddToastActivationInfo("", ToastActivationType.Foreground)
-					.AddText(title)
+					.AddText(settings.TestEnvironmentMessage + title)
 					.AddText(message)
 					.AddAppLogoOverride(new Uri(iconPath))
 					.Show();

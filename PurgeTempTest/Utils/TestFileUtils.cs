@@ -1,12 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 
 namespace PurgeTempTest.Utils
 {
-	public static class FileUtils
+	public static class TestFileUtils
 	{
 		public static void DeleteDirectoryWithRetry(string directoryPath, int maxRetries = 5, int delayMilliseconds = 500)
 		{
@@ -64,6 +65,48 @@ namespace PurgeTempTest.Utils
 				File.Delete(tempFile);
 			}
 			return lineCount;
+		}
+
+		public static string CopyEmbeddedResourceToFolder(string resourceName, string destinationFolderPath)
+		{
+			if (string.IsNullOrEmpty(resourceName))
+			{
+				throw new ArgumentException("Resource name must not be null or empty.", nameof(resourceName));
+			}
+
+			if (string.IsNullOrEmpty(destinationFolderPath))
+			{
+				throw new ArgumentException("Destination folder path must not be null or empty.", nameof(destinationFolderPath));
+			}
+
+			if (!Directory.Exists(destinationFolderPath))
+			{
+				throw new DirectoryNotFoundException($"The destination folder '{destinationFolderPath}' does not exist.");
+			}
+
+			// Get the assembly that contains the embedded resource
+			var assembly = Assembly.GetExecutingAssembly();
+
+			// Determine the path where the resource should be copied
+			var destinationFilePath = Path.Combine(destinationFolderPath, resourceName);
+
+			// Get the full resource name (namespace + resource name)
+			var fullResourceName = $"{assembly.GetName().Name}.Resources.{resourceName}";
+
+			using (var resourceStream = assembly.GetManifestResourceStream(fullResourceName))
+			{
+				if (resourceStream == null)
+				{
+					throw new InvalidOperationException($"Embedded resource '{fullResourceName}' not found.");
+				}
+
+				using (var fileStream = new FileStream(destinationFilePath, FileMode.Create, FileAccess.Write))
+				{
+					resourceStream.CopyTo(fileStream);
+				}
+			}
+
+			return destinationFilePath;
 		}
 
 	}

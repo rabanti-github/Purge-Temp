@@ -32,8 +32,8 @@ namespace PurgeTemp.Controller
 			public const string StageLastNameSuffix = "AppSettings:StageLastNameSuffix";
 			public const string StageNamePrefix = "AppSettings:StageNamePrefix";
 			public const string StageRootFolder = "AppSettings:StageRootFolder";
-			public const string StageVersions = "AppSettings:StageVersions";
 			public const string StageVersionDelimiter = "AppSettings:StageVersionDelimiter";
+			public const string StageVersions = "AppSettings:StageVersions";
 			public const string StagingDelaySeconds = "AppSettings:StagingDelaySeconds";
 			public const string StagingTimestampFile = "AppSettings:StagingTimestampFile";
 			public const string TempFolder = "AppSettings:TempFolder";
@@ -44,6 +44,7 @@ namespace PurgeTemp.Controller
 
 		private readonly IConfiguration configuration;
 		private readonly Dictionary<string, object> overrides;
+		private string testEnvironmentMessage = "";
 
 		public Settings(IConfiguration configuration, string path)
 		{
@@ -60,26 +61,27 @@ namespace PurgeTemp.Controller
 
 		public bool AppendNumberOnFirstStage => GetValue<bool>(Keys.AppendNumberOnFirstStage);
 		public string ConfigFolder => GetValue<string>(Keys.ConfigFolder);
-		public int StageVersions => GetValue<int>(Keys.StageVersions);
-		public string StageNamePrefix => GetValue<string>(Keys.StageNamePrefix);
-		public bool RemoveEmptyStageFolders => GetValue<bool>(Keys.RemoveEmptyStageFolders);
-		public string StageVersionDelimiter => GetValue<string>(Keys.StageVersionDelimiter);
-		public int StagingDelaySeconds => GetValue<int>(Keys.StagingDelaySeconds);
-		public bool ShowPurgeMessage => GetValue<bool>(Keys.ShowPurgeMessage);
-		public string PurgeMessageLogoFile => GetValue<string>(Keys.PurgeMessageLogoFile);
-		public string LoggingFolder => GetValue<string>(Keys.LoggingFolder);
+		public int FileLogAmountThreshold => GetValue<int>(Keys.FileLogAmountThreshold);
+		public bool LogAllFiles => GetValue<bool>(Keys.LogAllFiles);
 		public bool LogEnabled => GetValue<bool>(Keys.LogEnabled);
+		public string LoggingFolder => GetValue<string>(Keys.LoggingFolder);
 		public int LogRotationBytes => GetValue<int>(Keys.LogRotationBytes);
 		public int LogRotationVersions => GetValue<int>(Keys.LogRotationVersions);
-		public bool LogAllFiles => GetValue<bool>(Keys.LogAllFiles);
-		public string StagingTimestampFile => GetValue<string>(Keys.StagingTimestampFile);
-		public string StageRootFolder => GetValue<string>(Keys.StageRootFolder);
-		public string TempFolder => GetValue<string>(Keys.TempFolder);
+		public string PurgeMessageLogoFile => GetValue<string>(Keys.PurgeMessageLogoFile);
+		public bool RemoveEmptyStageFolders => GetValue<bool>(Keys.RemoveEmptyStageFolders);
+		public bool ShowPurgeMessage => GetValue<bool>(Keys.ShowPurgeMessage);
 		public string SkipTokenFile => GetValue<string>(Keys.SkipTokenFile);
-		public string TimeStampFormat => GetValue<string>(Keys.TimeStampFormat);
 		public string StageLastNameSuffix => GetValue<string>(Keys.StageLastNameSuffix);
-		public int FileLogAmountThreshold => GetValue<int>(Keys.FileLogAmountThreshold);
+		public string StageNamePrefix => GetValue<string>(Keys.StageNamePrefix);
+		public string StageRootFolder => GetValue<string>(Keys.StageRootFolder);
+		public string StageVersionDelimiter => GetValue<string>(Keys.StageVersionDelimiter);
+		public int StageVersions => GetValue<int>(Keys.StageVersions);
+		public int StagingDelaySeconds => GetValue<int>(Keys.StagingDelaySeconds);
+		public string StagingTimestampFile => GetValue<string>(Keys.StagingTimestampFile);
+		public string TempFolder => GetValue<string>(Keys.TempFolder);
+		public string TimeStampFormat => GetValue<string>(Keys.TimeStampFormat);
 
+		public string TestEnvironmentMessage { get => testEnvironmentMessage; set => testEnvironmentMessage = value; }
 
 		private T GetValue<T>(string key)
 		{

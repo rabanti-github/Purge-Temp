@@ -24,20 +24,38 @@ namespace PurgeTemp.Controller
 		{
 			this.pathUtils = pathUtils;
 		}
-		[Option('a', "append-number-on-first-stage", Required = false, HelpText = "If true, the stage number ia appended to the first stage folder name.")]
+		[Option('a', "append-number-on-first-stage", Required = false, HelpText = "If true, the stage number is appended to the first stage folder name.")]
 		public bool? AppendNumberOnFirstStage { get; set; }
 
 		[Option('c', "config-folder", Required = false, HelpText = "Config folder.")]
 		public string ConfigFolder { get; set; }
 
-		[Option('q', "file-log-amount-threshold", Required = false, HelpText = "File log amount threshold. If more than this number of files are in a stage folder, only the remaining number will be logged on purge after exceeding this number. The value cannot be negative.")]
+		[Option('q', "file-log-amount-threshold", Required = false, HelpText = "File log amount threshold. If more than this number of files are in a stage folder, only the remaining number will be logged on purge after exceeding this number. The value cannot be smaller than -1. If -1, all files will be logged.")]
 		public int? FileLogAmountThreshold { get; set; }
-
-		[Option('s', "settings-file", Required = false, HelpText = "Path to a settings file that overrides the default settings. CLI arguments may override particular settings of that file.")]
-		public string SettingsFile { get; set; }
 
 		[Option('h', "help", Required = false, HelpText = "Display this help screen.")]
 		public bool Help { get; set; }
+
+		[Option('a', "log-all-files", Required = false, HelpText = "Log all files (when purge is executed).")]
+		public bool? LogAllFiles { get; set; }
+
+		[Option('e', "log-enabled", Required = false, HelpText = "Enable logging.")]
+		public bool? LogEnabled { get; set; }
+
+		[Option('f', "logging-folder", Required = false, HelpText = "Logging folder.")]
+		public string LoggingFolder { get; set; }
+
+		[Option('b', "log-rotation-bytes", Required = false, HelpText = "Log rotation size in bytes. If 0, no limit in bytes is set.The value cannot be negative.")]
+		public int? LogRotationBytes { get; set; }
+
+		[Option('o', "log-rotation-versions", Required = false, HelpText = "Number of log rotation versions. If 0, no limit of files is set.The value cannot be negative.")]
+		public int? LogRotationVersions { get; set; }
+
+		[Option('i', "purge-message-logo", Required = false, HelpText = "Purge message logo file for desktop notifications.")]
+		public string PurgeMessageLogoFile { get; set; }
+
+		[Option('s', "settings-file", Required = false, HelpText = "Path to a settings file that overrides the default settings. CLI arguments may override particular settings of that file.")]
+		public string SettingsFile { get; set; }
 
 		[Option('v', "stage-versions", Required = false, HelpText = "Number of stage versions. If 1, only one folder without a last folder will be used. The value cannot be negative or zero.")]
 		public int? StageVersions { get; set; }
@@ -53,24 +71,6 @@ namespace PurgeTemp.Controller
 
 		[Option('m', "show-purge-message", Required = false, HelpText = "Show purge message as desktop notifications.")]
 		public bool? ShowPurgeMessage { get; set; }
-
-		[Option('i', "purge-message-logo", Required = false, HelpText = "Purge message logo file for desktop notifications.")]
-		public string PurgeMessageLogoFile { get; set; }
-
-		[Option('f', "logging-folder", Required = false, HelpText = "Logging folder.")]
-		public string LoggingFolder { get; set; }
-
-		[Option('e', "log-enabled", Required = false, HelpText = "Enable logging.")]
-		public bool? LogEnabled { get; set; }
-
-		[Option('b', "log-rotation-bytes", Required = false, HelpText = "Log rotation size in bytes.")]
-		public int? LogRotationBytes { get; set; }
-
-		[Option('o', "log-rotation-versions", Required = false, HelpText = "Number of log rotation versions.")]
-		public int? LogRotationVersions { get; set; }
-
-		[Option('a', "log-all-files", Required = false, HelpText = "Log all files (when purge is executed).")]
-		public bool? LogAllFiles { get; set; }
 
 		[Option('g', "staging-timestamp-file", Required = false, HelpText = "Staging timestamp file name.")]
 		public string StagingTimestampFile { get; set; }
@@ -93,9 +93,6 @@ namespace PurgeTemp.Controller
 
 		[Option('u', "remove-empty-stage-folders", Required = false, HelpText = "Removes intermediate stage folders if empty.")]
 		public bool? RemoveEmptyStageFolders { get; set; }
-
-
-
 
 		public Settings ParseSetting(Settings defaultSettings, IConfiguration configuration, string[] args)
 		{

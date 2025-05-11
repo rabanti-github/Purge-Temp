@@ -16,7 +16,17 @@ namespace PurgeTemp.Utils
 	/// </summary>
 	public class PathUtils
 	{
-		private static readonly HashSet<string> ReservedNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        public const string DEFAULT_DELIMITER = "-";
+        public const string DEFAULT_TEMP_FOLDER_NAME = "purge-temp";
+        public const string DEFAULT_LAST_FOLDER_NAME_TOKEN = "LAST";
+        public static readonly List<string> TestSystemPathTokens = new List<string>()
+		{
+			"C:\\", "NOT_", "EXISTING_", "PROTECTED_", "SYSTEM_", "PATH_", "FOR_", "TESTING"
+		};
+
+		public static readonly string TestSystemPath = String.Join("", TestSystemPathTokens);
+
+		public static readonly HashSet<string> ReservedNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
 		{
 			"CON", "PRN", "AUX", "NUL",
 			"COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9",
@@ -36,7 +46,8 @@ namespace PurgeTemp.Utils
 			Environment.GetFolderPath(Environment.SpecialFolder.CommonPrograms),
 			Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
 			Environment.GetFolderPath(Environment.SpecialFolder.CommonDocuments),
-			Environment.GetFolderPath(Environment.SpecialFolder.CommonDesktopDirectory)
+			Environment.GetFolderPath(Environment.SpecialFolder.CommonDesktopDirectory),
+			TestSystemPath
 		};
 
 			return systemPaths;
@@ -58,7 +69,7 @@ namespace PurgeTemp.Utils
 
 		public string GetPath(string token)
 		{
-			string currentPath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+			string? currentPath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
 			return GetPath(currentPath, token);
 		}
 
@@ -154,7 +165,7 @@ namespace PurgeTemp.Utils
 			}
 			catch (Exception ex)
 			{
-				AppLogger.Error($"Could n ot create folder '{path}': {ex.Message}");
+				AppLogger.Error($"Could not create folder '{path}': {ex.Message}");
 				if (isStageFolder)
 				{
 					return Result.Fail(ErrorCodes.CouldNotCreateNewStageFolder);
@@ -247,7 +258,7 @@ namespace PurgeTemp.Utils
 
 		public (string delimiter, string prefix) SanitizeSettings(string delimiter, string prefix)
 		{
-			string dummy = "LAST";
+			string dummy = DEFAULT_LAST_FOLDER_NAME_TOKEN;
 			(string delimiter, string prefix, string suffixForLast) value = SanitizeSettings(delimiter, prefix, dummy);
 			return (value.delimiter, value.prefix);
 		}
@@ -262,27 +273,27 @@ namespace PurgeTemp.Utils
 			}
 			else if (delimiter.IndexOfAny(Path.GetInvalidFileNameChars()) != -1)
 			{
-				AppLogger.Warning($"Invalid characters in delimiter '{delimiter}' detected. Replacing with '-'.");
-				delimiter = "-";
+				AppLogger.Warning($"Invalid characters in delimiter '{delimiter}' detected.  Replacing with '" + DEFAULT_DELIMITER +"'.");
+				delimiter = DEFAULT_DELIMITER;
 			}
 			else if (ReservedNames.Contains(delimiter))
 			{
-				AppLogger.Warning($"Reserved name '{delimiter}' detected as delimiter. Replacing with '-'.");
-				delimiter = "-";
+				AppLogger.Warning($"Reserved name '{delimiter}' detected as delimiter.  Replacing with '" + DEFAULT_DELIMITER +"'.");
+				delimiter = DEFAULT_DELIMITER;
 			}
 
 			// Check and sanitize prefix
-			Result prefixValidation = IsValidFolderName(prefix, true, "Replacing with 'purge-temp'.");
+			Result prefixValidation = IsValidFolderName(prefix, true, "Replacing with '"+ DEFAULT_TEMP_FOLDER_NAME +"'.");
 			if (prefixValidation.IsNotValid)
 			{
-				prefix = "purge-temp";
+				prefix = DEFAULT_TEMP_FOLDER_NAME;
 			}
 
 			// Check and sanitize suffix for last
-			Result lastSuffixValidation = IsValidFolderName(suffixForLast, true, "Replacing with 'LAST'.");
+			Result lastSuffixValidation = IsValidFolderName(suffixForLast, true, "Replacing with '"+ DEFAULT_LAST_FOLDER_NAME_TOKEN+ "'.");
 			if (lastSuffixValidation.IsNotValid)
 			{
-				suffixForLast = "LAST";
+				suffixForLast = DEFAULT_LAST_FOLDER_NAME_TOKEN;
 			}
 
 			return (delimiter, prefix, suffixForLast);
@@ -335,11 +346,14 @@ namespace PurgeTemp.Utils
 		/// </summary>
 		/// <param name="folderPath">The folder path to check.</param>
 		/// <returns></returns>
-		public Result CheckSystemRelevantFolder(string folderPath)
+		public Result CheckSystemRelevantFolder(string folderPath, bool logError = true)
 		{
 			if (string.IsNullOrEmpty(folderPath))
 			{
-				WriteLogMessage($"Specified path is null.", null, false);
+				if (logError)
+				{
+					WriteLogMessage($"Specified path is null.", null, false);
+				}
 				return Result.Fail(ErrorCodes.EmptyFolderName);
 			}
 
@@ -349,7 +363,10 @@ namespace PurgeTemp.Utils
 			// Check if the path matches any of the known system-relevant paths
 			if (SystemPaths.Contains(normalizedPath))
 			{
-				WriteLogMessage($"Specified path is a system relevant path and may not be created or deleted.", ":" + normalizedPath, false);
+				if (logError)
+				{
+					WriteLogMessage($"Specified path is a system relevant path and may not be created or deleted.", ":" + normalizedPath, false);
+				}
 				return Result.Fail(ErrorCodes.PathIsSystemDirectory);
 			}
 			return Result.Success();

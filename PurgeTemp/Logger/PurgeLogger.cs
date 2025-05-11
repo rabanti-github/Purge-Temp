@@ -41,12 +41,15 @@ namespace PurgeTemp.Logger
 				string logFolder = pathUtils.GetPath(settings.LoggingFolder);
 				string logFilePath = Path.Combine(logFolder, LOGFILE_NAME_TEMPLATE + LOGFILE_EXTENSION);
 
+				int? bytes = settings.LogRotationBytes == 0 ? null : settings.LogRotationBytes;
+				int? versions = settings.LogRotationVersions == 0 ? null : settings.LogRotationVersions;
+
 				loggerConfiguration.WriteTo.File(
 					logFilePath,
 					rollingInterval: RollingInterval.Day,
-					fileSizeLimitBytes: settings.LogRotationBytes,
+					fileSizeLimitBytes: bytes,
 					rollOnFileSizeLimit: true,
-					retainedFileCountLimit: settings.LogRotationVersions,
+					retainedFileCountLimit: versions,
 					outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss} {Message}{NewLine}"
 				);
 			}

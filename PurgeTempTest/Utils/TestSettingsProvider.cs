@@ -19,7 +19,7 @@ namespace PurgeTempTest.Utils
             ""AppSettings"": {
                 ""AppendNumberOnFirstStage"": true,
                 ""ConfigFolder"": ""./config"",
-                ""FileLogAmountThreshold"": 1000^,
+                ""FileLogAmountThreshold"": 1000,
                 ""StageVersions"": 4,
                 ""StageNamePrefix"": ""purge-temp"",
                 ""StageVersionDelimiter"": ""-"",
@@ -57,13 +57,18 @@ namespace PurgeTempTest.Utils
 			{
 				foreach (KeyValuePair<string, string> kvp in overrides)
 				{
+					string value = kvp.Value;
+					if (value == null)
+					{
+						value = "";
+					}
 					if (kvp.Key.StartsWith("AppSettings:"))
 					{
-						jsonSettings["AppSettings"][kvp.Key.Substring(12)] = kvp.Value;
+						jsonSettings["AppSettings"][kvp.Key.Substring(12)] = value;
 					}
 					else
 					{
-						jsonSettings["AppSettings"][kvp.Key] = kvp.Value;
+						jsonSettings["AppSettings"][kvp.Key] = value;
 					}
 				}
 			}

@@ -24,11 +24,11 @@ namespace PurgeTempTest
 			Dictionary<string, string> overrides = Arrange(out stageRootFolder, out stageFolder1, out stageFolder2, out stageFolderLast);
 
 			// Place two files in stage 1
-			string file1Path = FileUtils.CreateFile(stageFolder1, "file1.txt", "Content of file 1");
-			string file2Path = FileUtils.CreateFile(stageFolder1, "file2.txt", "Content of file 2");
+			string file1Path = TestFileUtils.CreateFile(stageFolder1, "file1.txt", "Content of file 1");
+			string file2Path = TestFileUtils.CreateFile(stageFolder1, "file2.txt", "Content of file 2");
 
 			// Place one file in stage 2
-			string file3Path = FileUtils.CreateFile(stageFolder2, "file3.txt", "Content of file 3");
+			string file3Path = TestFileUtils.CreateFile(stageFolder2, "file3.txt", "Content of file 3");
 
 			Settings testSettings = TestSettingsProvider.GetSettings(stageRootFolder, overrides);
 			PurgeController purgeController = Program.GetTestEnvironment(testSettings);
@@ -58,7 +58,7 @@ namespace PurgeTempTest
 			Dictionary<string, string> overrides = Arrange(out stageRootFolder, out stageFolder1, out stageFolder2, out stageFolderLast);
 
 			// Place two files in stage 1
-			string file1Path = FileUtils.CreateFile(stageFolder1, "file1.txt", "Content of file 1");
+			string file1Path = TestFileUtils.CreateFile(stageFolder1, "file1.txt", "Content of file 1");
 
 			Settings testSettings = TestSettingsProvider.GetSettings(stageRootFolder, overrides);
 			PurgeController purgeController = Program.GetTestEnvironment(testSettings);

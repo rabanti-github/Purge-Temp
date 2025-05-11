@@ -220,10 +220,35 @@ namespace PurgeTemp.Controller
 				AppLogger.Error($"The number of stages cannot be zero or negative");
 				return Result<string>.Fail(ErrorCodes.InvalidNumberOfStages);
 			}
-			if (settings.FileLogAmountThreshold < 0)
+			if (settings.FileLogAmountThreshold < -1)
 			{
-				AppLogger.Error($"The number of files to skip on purge logging cannot be negative");
+				AppLogger.Error($"The number of files to skip on purge logging cannot be smaller than -1 (0 = no particular logs, -1 = log all files)");
 				return Result<string>.Fail(ErrorCodes.InvalidFileLogAmount);
+			}
+			if (settings.LogRotationBytes < 0)
+			{
+				AppLogger.Error($"The number of maximum bytes for a logfile cannot be negative (0 = no limit)");
+				return Result<string>.Fail(ErrorCodes.InvalidLogRotationBytes);
+			}
+			if (settings.LogRotationVersions < 0)
+			{
+				AppLogger.Error($"The number of retained files for the logfile rotation cannot be negative (0 = no limit)");
+				return Result<string>.Fail(ErrorCodes.InvalidLogRotationVersions);
+			}if (settings.PurgeMessageLogoFile != null && settings.ShowPurgeMessage)
+            {
+                bool validLogoFileName = fileUtils.IsValidFileName(settings.PurgeMessageLogoFile);
+                if (!validLogoFileName)
+                {
+                    return Result<string>.Fail(ErrorCodes.InvalidPurgeMessageLogoFile);
+                }
+            }
+            if (settings.SkipTokenFile != null)
+			{
+				bool validSkipFileName = fileUtils.IsValidFileName(settings.SkipTokenFile);
+				if (!validSkipFileName)
+				{
+					return Result<string>.Fail(ErrorCodes.InvalidSkipTokenFile);
+				}
 			}
 			return Result.Success();
 		}

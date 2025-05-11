@@ -10,25 +10,26 @@ namespace PurgeTemp.Interface
 	{
 		bool AppendNumberOnFirstStage { get; }
 		string ConfigFolder { get; }
+		int FileLogAmountThreshold { get; }
+		bool LogAllFiles { get; }
 		int StageVersions { get; }
-		string StageNamePrefix { get; }
-		bool RemoveEmptyStageFolders { get; }
-		string StageVersionDelimiter { get; }
-		int StagingDelaySeconds { get; }
-		bool ShowPurgeMessage { get; }
-		string PurgeMessageLogoFile { get; }
-		string LoggingFolder { get; }
 		bool LogEnabled { get; }
+		string LoggingFolder { get; }
 		int LogRotationBytes { get; }
 		int LogRotationVersions { get; }
-		bool LogAllFiles { get; }
-		string StagingTimestampFile { get; }
-		string StageRootFolder { get; }
-		string TempFolder { get; }
+		string PurgeMessageLogoFile { get; }
+		bool RemoveEmptyStageFolders { get; }
+		bool ShowPurgeMessage { get; }
 		string SkipTokenFile { get; }
-		string TimeStampFormat { get; }
 		string StageLastNameSuffix { get; }
-		int FileLogAmountThreshold { get; }
+		string StageNamePrefix { get; }
+		string StageRootFolder { get; }
+		string StageVersionDelimiter { get; }
+		int StagingDelaySeconds { get; }
+		string StagingTimestampFile { get; }
+		string TempFolder { get; }
+		string TimeStampFormat { get; }
 		void OverrideSetting<T>(string key, T value);
+		string TestEnvironmentMessage { get; set; }
 	}
 }

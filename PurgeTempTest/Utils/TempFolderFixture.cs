@@ -24,7 +24,7 @@ namespace PurgeTempTest.Utils
 			{
 				if (Directory.Exists(folder))
 				{
-					FileUtils.DeleteDirectoryWithRetry(folder);
+					TestFileUtils.DeleteDirectoryWithRetry(folder);
 				}
 			}
 		}
