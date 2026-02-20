@@ -9,7 +9,10 @@ using CommandLine;
 using CommandLine.Text;
 using Microsoft.Extensions.Configuration;
 using PurgeTemp.Utils;
+using System.Runtime.CompilerServices;
 using System.Text;
+
+[assembly: InternalsVisibleTo("PurgeTempTest")]
 
 namespace PurgeTemp.Controller
 {
@@ -19,10 +22,23 @@ namespace PurgeTemp.Controller
 	public class CLI
 	{
 		private readonly PathUtils pathUtils;
+		private readonly Action exitAction;
+
+		public CLI()
+		{
+			this.exitAction = () => Environment.Exit(0);
+		}
 
 		public CLI(PathUtils pathUtils)
 		{
 			this.pathUtils = pathUtils;
+			this.exitAction = () => Environment.Exit(0);
+		}
+
+		internal CLI(PathUtils pathUtils, Action exitAction)
+		{
+			this.pathUtils = pathUtils;
+			this.exitAction = exitAction ?? (() => Environment.Exit(0));
 		}
 		[Option('a', "append-number-on-first-stage", Required = false, HelpText = "If true, the stage number is appended to the first stage folder name.")]
 		public bool? AppendNumberOnFirstStage { get; set; }
@@ -33,10 +49,7 @@ namespace PurgeTemp.Controller
 		[Option('q', "file-log-amount-threshold", Required = false, HelpText = "File log amount threshold. If more than this number of files are in a stage folder, only the remaining number will be logged on purge after exceeding this number. The value cannot be smaller than -1. If -1, all files will be logged.")]
 		public int? FileLogAmountThreshold { get; set; }
 
-		[Option('h', "help", Required = false, HelpText = "Display this help screen.")]
-		public bool Help { get; set; }
-
-		[Option('a', "log-all-files", Required = false, HelpText = "Log all files (when purge is executed).")]
+		[Option('n', "log-all-files", Required = false, HelpText = "Log all files (when purge is executed).")]
 		public bool? LogAllFiles { get; set; }
 
 		[Option('e', "log-enabled", Required = false, HelpText = "Enable logging.")]
@@ -98,14 +111,21 @@ namespace PurgeTemp.Controller
 		{
 			CLI opts = null;
 
-			Parser.Default.ParseArguments<CLI>(args)
-				.WithParsed(parsed => opts = parsed);
+			// Use TextWriter.Null (not null) so AutoHelp stays enabled and --help is still
+			// recognised as HelpRequestedError, while CLP's auto-output is silently discarded.
+			using var parser = new Parser(cfg => cfg.HelpWriter = TextWriter.Null);
+			ParserResult<CLI> parseResult = parser.ParseArguments<CLI>(args);
 
-			if (opts.Help)
-			{
-				DisplayHelp<CLI>(Parser.Default.ParseArguments<CLI>(args), args);
-				Environment.Exit(0);
-			}
+			parseResult
+				.WithParsed(parsed => opts = parsed)
+				.WithNotParsed(errors =>
+				{
+					if (errors.IsHelp())
+					{
+						DisplayHelp<CLI>(parseResult, args);
+						exitAction(); // Environment.Exit(0) in production; no-op in tests.
+					}
+				});
 
 			if (opts != null && !string.IsNullOrEmpty(opts.SettingsFile))
 			{
@@ -177,7 +197,7 @@ namespace PurgeTemp.Controller
 					defaultSettings.OverrideSetting(Settings.Keys.StageLastNameSuffix, opts.StageLastNameSuffix);
 
 				if (opts.RemoveEmptyStageFolders.HasValue)
-					defaultSettings.OverrideSetting(Settings.Keys.RemoveEmptyStageFolders, opts.RemoveEmptyStageFolders);
+					defaultSettings.OverrideSetting(Settings.Keys.RemoveEmptyStageFolders, opts.RemoveEmptyStageFolders.Value);
 
 				if (opts.FileLogAmountThreshold.HasValue)
 					defaultSettings.OverrideSetting(Settings.Keys.FileLogAmountThreshold, opts.FileLogAmountThreshold.Value);
@@ -195,7 +215,7 @@ namespace PurgeTemp.Controller
 			Console.WriteLine(helpText);
 		}
 
-		private string GetCLIPrefix()
+		internal string GetCLIPrefix()
 		{
 			StringBuilder sb = new StringBuilder();
 			sb.Append("\n");
