@@ -1,6 +1,6 @@
 ﻿/*
  * Purge-Temp - Staged temp file clean-up application
- * Copyright Raphael Stoeckli © 2024
+ * Copyright Raphael Stoeckli © 2026
  * This library is licensed under the MIT License.
  * You find a copy of the license in project folder or on: http://opensource.org/licenses/MIT
  */
@@ -133,15 +133,6 @@ namespace PurgeTemp.Utils
 
 		private string CombineRelativePath(string basePath, string token, params string[] pathMarkers)
 		{
-			string root = basePath;
-			foreach (string prefix in pathMarkers)
-			{
-				if (basePath.StartsWith(prefix))
-				{
-					root = basePath.Substring(prefix.Length);
-					break;
-				}
-			}
 			string appendix = token;
 			foreach (string prefix in pathMarkers)
 			{
@@ -151,7 +142,7 @@ namespace PurgeTemp.Utils
 					break;
 				}
 			}
-			return Path.Combine(root, appendix);
+			return Path.Combine(basePath, appendix);
 		}
 
 		public Result CreateFolder(string path, bool isStageFolder = true)
@@ -308,15 +299,25 @@ namespace PurgeTemp.Utils
 					WriteLogMessage($"Specified path is null.", appendLogMessage, isWarning);
 					return Result.Fail(ErrorCodes.EmptyFolderName);
 				}
-				DirectoryInfo info = new DirectoryInfo(name);
-				if (info.Name.IndexOfAny(Path.GetInvalidFileNameChars()) != -1)
+				string trimmedName = name.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+				if (string.IsNullOrEmpty(trimmedName))
+				{
+					WriteLogMessage($"Specified path is null.", appendLogMessage, isWarning);
+					return Result.Fail(ErrorCodes.EmptyFolderName);
+				}
+				string lastComponent = Path.GetFileName(trimmedName);
+				if (string.IsNullOrEmpty(lastComponent))
+				{
+					lastComponent = trimmedName;
+				}
+				if (lastComponent.IndexOfAny(Path.GetInvalidFileNameChars()) != -1)
 				{
 					WriteLogMessage($"Invalid characters in folder name '{name}' detected.", appendLogMessage, isWarning);
 					return Result.Fail(ErrorCodes.IllegalCharactersInFolderName);
 				}
-				else if (ReservedNames.Contains(name))
+				else if (ReservedNames.Contains(lastComponent))
 				{
-					WriteLogMessage($"Reserved name '{name}' detected as folder name.", appendLogMessage, isWarning);
+					WriteLogMessage($"Reserved name '{lastComponent}' detected as folder name.", appendLogMessage, isWarning);
 					return Result.Fail(ErrorCodes.ReservedNameAsFolderName);
 				}
 				else if (name.EndsWith(" ") || name.EndsWith("."))

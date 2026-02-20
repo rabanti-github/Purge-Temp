@@ -1,6 +1,6 @@
-﻿/*
+/*
  * Purge-Temp - Staged temp file clean-up application
- * Copyright Raphael Stoeckli © 2024
+ * Copyright Raphael Stoeckli © 2026
  * This library is licensed under the MIT License.
  * You find a copy of the license in project folder or on: http://opensource.org/licenses/MIT
  */
@@ -15,55 +15,43 @@ namespace PurgeTemp.Utils
 	public class AssemblyUtils
 	{
 
-		public static string GetAssemblyName()
+		public static string GetAssemblyName(Assembly? assembly = null)
 		{
-			string? assemblyName = Assembly.GetExecutingAssembly().GetName().Name;
-			if (assemblyName != null)
-			{
-				return assemblyName.ToString();
-			}
-			else
-			{
-				return "Purge-Temp";
-			}
+			assembly ??= Assembly.GetExecutingAssembly();
+			return assembly.GetName().Name ?? "Purge-Temp";
 		}
 
-		public static string GetVersion()
+		public static string GetVersion(Assembly? assembly = null)
 		{
-			Version? version = Assembly.GetExecutingAssembly().GetName().Version;
-			if (version != null)
-			{
-				return version.ToString();
-			}
-			else
-			{
-				return "0.0.0";
-			}
+			assembly ??= Assembly.GetExecutingAssembly();
+			return assembly.GetName().Version?.ToString() ?? "0.0.0";
 		}
 
-		private static string GetAttributeValue<T>(Func<T, string> valueSelector, string defaultValue) where T : Attribute
+		private static string GetAttributeValue<T>(Func<T, string> valueSelector, string defaultValue, Assembly? assembly = null) where T : Attribute
 		{
-			T? attribute = (T?)Attribute.GetCustomAttribute(Assembly.GetExecutingAssembly(), typeof(T), false);
+			assembly ??= Assembly.GetExecutingAssembly();
+			T? attribute = (T?)Attribute.GetCustomAttribute(assembly, typeof(T), false);
 			return attribute != null ? valueSelector(attribute) : defaultValue;
 		}
 
-		public static string GetCopyright()
+		public static string GetCopyright(Assembly? assembly = null)
 		{
-			return GetAttributeValue<AssemblyCopyrightAttribute>(attr => attr.Copyright, "See copyright information at project website");
+			return GetAttributeValue<AssemblyCopyrightAttribute>(attr => attr.Copyright, "See copyright information at project website", assembly);
 		}
 
-		public static string GetDescription()
+		public static string GetDescription(Assembly? assembly = null)
 		{
-			return GetAttributeValue<AssemblyDescriptionAttribute>(attr => attr.Description, "See project website for a exact description of the application");
+			return GetAttributeValue<AssemblyDescriptionAttribute>(attr => attr.Description, "See project website for a exact description of the application", assembly);
 		}
 
-		public static string GetRepositoryURL()
+		public static string GetRepositoryURL(Assembly? assembly = null)
 		{
+			assembly ??= Assembly.GetExecutingAssembly();
 			string? attribute = ((AssemblyMetadataAttribute[])Attribute.GetCustomAttributes(
-					 Assembly.GetExecutingAssembly(), typeof(AssemblyMetadataAttribute)))
+					 assembly, typeof(AssemblyMetadataAttribute)))
 					 .FirstOrDefault(a => a.Key == "RepositoryUrl")?.Value;
 			return attribute ?? "<could not determine the Repository URL>";
 		}
-		
+
 	}
 }

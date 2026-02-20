@@ -11,7 +11,7 @@
     <FileVersion>1.0.0</FileVersion>
     <AssemblyVersion>1.0.0</AssemblyVersion>
     <Title>Purge-Temp</Title>
-    <Copyright>Copyright (c) 2024 Raphael Stoeckli</Copyright>
+    <Copyright>Copyright (c) 2026 Raphael Stoeckli</Copyright>
     <Description>Purge-Temp is an application to clean-up user regenerated, temporary files in an automatic way.
 To prevent losing files by accident, several stages, and a minimum time between two purges can be configured.
 Has file reached the last stage, then it will be deleted for good (purged).</Description>

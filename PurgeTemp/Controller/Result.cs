@@ -1,6 +1,6 @@
 ﻿/*
  * Purge-Temp - Staged temp file clean-up application
- * Copyright Raphael Stoeckli © 2024
+ * Copyright Raphael Stoeckli © 2026
  * This library is licensed under the MIT License.
  * You find a copy of the license in project folder or on: http://opensource.org/licenses/MIT
  */
@@ -21,7 +21,6 @@ namespace PurgeTemp.Controller
 		public T? Value
 		{
 			get { return this.value; }
-			private set { this.value = value; }
 		}
 
 		public static Result<T> Success(T value)

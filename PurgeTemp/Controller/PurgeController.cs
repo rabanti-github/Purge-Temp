@@ -1,6 +1,6 @@
 ﻿/*
  * Purge-Temp - Staged temp file clean-up application
- * Copyright Raphael Stoeckli © 2024
+ * Copyright Raphael Stoeckli © 2026
  * This library is licensed under the MIT License.
  * You find a copy of the license in project folder or on: http://opensource.org/licenses/MIT
  */
@@ -98,8 +98,6 @@ namespace PurgeTemp.Controller
 							desktopNotification.ShowNotification("Purge not executed", "The purge execution cannot be performed due to other errors", IDesktopNotification.Status.ERROR);
 							errorCode = ErrorCodes.UnknownError;
 							break;
-						default:
-							break;
 					}
 					return errorCode;
 				}
@@ -119,7 +117,7 @@ namespace PurgeTemp.Controller
 					{
 						AppLogger.Error($"Could not create the stage folder '{allStageFolders.Value[i]}' (error code {createValidation.ErrorCode})");
 						desktopNotification.ShowNotification("Purge not executed", $"Could not create the stage folder '{allStageFolders.Value[i]}' (error code {createValidation.ErrorCode})", IDesktopNotification.Status.ERROR);
-						return errorCode;
+						return createValidation.ErrorCode;
 					}
 				}
 
@@ -172,7 +170,7 @@ namespace PurgeTemp.Controller
 					{
 						if (Directory.Exists(stageFolders[i]))
 						{
-							if (Directory.GetFiles(stageFolders[i]).Length == 0)
+							if (Directory.GetFileSystemEntries(stageFolders[i]).Length == 0)
 							{
 								Directory.Delete(stageFolders[i]);
 							}
@@ -261,7 +259,7 @@ namespace PurgeTemp.Controller
 			{
 				return Result.Fail(configFolderValidation.ErrorCode);
 			}
-			Result result = pathUtils.CreateFolder(configFolder, true);
+			Result result = pathUtils.CreateFolder(configFolder, false);
 			if (result.IsNotValid)
 			{
 				return Result.Fail(result.ErrorCode);
@@ -273,7 +271,7 @@ namespace PurgeTemp.Controller
 			{
 				return Result.Fail(tempFolderValidation.ErrorCode);
 			}
-			result = pathUtils.CreateFolder(tempFolder, true);
+			result = pathUtils.CreateFolder(tempFolder, false);
 			if (result.IsNotValid)
 			{
 				return Result.Fail(result.ErrorCode);
@@ -286,7 +284,7 @@ namespace PurgeTemp.Controller
 				{
 					return Result.Fail(logFolderValidation.ErrorCode);
 				}
-				result = pathUtils.CreateFolder(logBaseFolder, true);
+				result = pathUtils.CreateFolder(logBaseFolder, false);
 				if (result.IsNotValid)
 				{
 					return Result.Fail(result.ErrorCode);

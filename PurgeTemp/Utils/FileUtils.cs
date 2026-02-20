@@ -1,6 +1,6 @@
 ﻿/*
  * Purge-Temp - Staged temp file clean-up application
- * Copyright Raphael Stoeckli © 2024
+ * Copyright Raphael Stoeckli © 2026
  * This library is licensed under the MIT License.
  * You find a copy of the license in project folder or on: http://opensource.org/licenses/MIT
  */
@@ -36,7 +36,7 @@ namespace PurgeTemp.Utils
 				return false;
             }
 			string path = fileName.Replace('/', Path.DirectorySeparatorChar);
-			string[] tokens = fileName.Split(Path.DirectorySeparatorChar);
+			string[] tokens = path.Split(Path.DirectorySeparatorChar);
 			string lastToken = tokens[tokens.Length - 1];
             if (string.IsNullOrEmpty(lastToken))
             {
@@ -90,7 +90,7 @@ namespace PurgeTemp.Utils
 					// Determine the target folder for moving files
 					string targetFolder = folders[currentIndex + 1];
 
-					PurgeLogger.MoveInfo(currentFolder, targetFolder, file.Substring(targetFolder.Length - 1));
+					PurgeLogger.MoveInfo(currentFolder, targetFolder, file.Substring(currentFolder.Length - 1));
 				}
 				filesLogged++;
 			}
