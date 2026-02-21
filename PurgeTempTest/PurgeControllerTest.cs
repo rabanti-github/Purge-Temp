@@ -788,6 +788,15 @@ namespace PurgeTempTest
 			Assert.Equal(PurgeController.ExecutionEvaluation.InvalidArguments, result);
 		}
 
+		// ========== Program API tests ==========
+
+		[Fact(DisplayName = "Test that GetTestEnvironment with null settings returns a valid PurgeController")]
+		public void GetTestEnvironmentWithNullSettingsReturnsControllerTest()
+		{
+			PurgeController purgeController = Program.GetTestEnvironment(null, Array.Empty<string>());
+			Assert.NotNull(purgeController);
+		}
+
 		// ========== Helper methods ==========
 
 		private static Settings ArrangeSettings(string stageRootFolder)

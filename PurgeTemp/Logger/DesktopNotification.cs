@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Purge-Temp - Staged temp file clean-up application
  * Copyright Raphael Stoeckli © 2026
  * This library is licensed under the MIT License.
@@ -32,45 +32,49 @@ namespace PurgeTemp.Logger
 			{
 				return;
 			}
-			string icon;
-			switch (status)
-			{
-				case Status.OK:
-					icon = "trashcan-ok128.png";
-					break;
-				case Status.SKIP:
-					icon = "trashcan-skipped128.png";
-					break;
-				case Status.ERROR:
-					icon = "trashcan-error128.png";
-					break;
-				default:
-					icon = "trashcan128.png";
-					break;
-			}
-			String iconPath = null;
-			if (!string.IsNullOrEmpty(settings.PurgeMessageLogoFile))
-			{
-				string path = pathUtils.GetPath(settings.PurgeMessageLogoFile);
-				if (File.Exists(path))
-				{
-					iconPath = path;
-				}
-				else
-				{
-					iconPath = pathUtils.GetPath("./resources/" + icon);
-				}
-			}
-			else
-			{
-				iconPath = pathUtils.GetPath("./resources/" + icon);
-			}
+			string icon = GetIconFileName(status);
+			string iconPath = ResolveIconPath(icon);
 			new ToastContentBuilder()
 					.AddToastActivationInfo("", ToastActivationType.Foreground)
 					.AddText(settings.TestEnvironmentMessage + title)
 					.AddText(message)
 					.AddAppLogoOverride(new Uri(iconPath))
 					.Show();
+		}
+
+		internal static string GetIconFileName(Status status)
+		{
+			switch (status)
+			{
+				case Status.OK:
+					return "trashcan-ok128.png";
+				case Status.SKIP:
+					return "trashcan-skipped128.png";
+				case Status.ERROR:
+					return "trashcan-error128.png";
+				default:
+					return "trashcan128.png";
+			}
+		}
+
+		internal string ResolveIconPath(string icon)
+		{
+			if (!string.IsNullOrEmpty(settings.PurgeMessageLogoFile))
+			{
+				string path = pathUtils.GetPath(settings.PurgeMessageLogoFile);
+				if (File.Exists(path))
+				{
+					return path;
+				}
+				else
+				{
+					return pathUtils.GetPath("./resources/" + icon);
+				}
+			}
+			else
+			{
+				return pathUtils.GetPath("./resources/" + icon);
+			}
 		}
 	}
 }

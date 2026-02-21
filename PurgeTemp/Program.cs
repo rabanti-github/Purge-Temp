@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Purge-Temp - Staged temp file clean-up application
  * Copyright Raphael Stoeckli © 2026
  * This library is licensed under the MIT License.
@@ -25,14 +25,15 @@ public class Program
 			{
 				services.AddSingleton<IConfiguration>(context.Configuration);
 				services.AddSingleton<ILoggerFactory, LoggerFactory>();
-				services.AddTransient<CLI>();
 				services.AddTransient<ISettings, Settings>(provider =>
 				{
 					IConfiguration configuration = provider.GetRequiredService<IConfiguration>();
 					Settings settings = new Settings(configuration, Settings.APP_SETTINGS_FILE);
 					if (args.Length != 0)
 					{
-						CLI cli = provider.GetRequiredService<CLI>();
+						ILoggerFactory loggerFactory = provider.GetRequiredService<ILoggerFactory>();
+						PathUtils pathUtils = new PathUtils(settings, loggerFactory);
+						CLI cli = new CLI(pathUtils);
 						settings = cli.ParseSetting(settings, configuration, args);
 					}
 
@@ -41,7 +42,6 @@ public class Program
 				services.AddTransient<IPurgeLogger, PurgeLogger>();
 				services.AddTransient<IAppLogger, AppLogger>();
 				services.AddTransient<IDesktopNotification, DesktopNotification>();
-				services.AddTransient<FileUtils>();
 				services.AddTransient<PathUtils>();
 				services.AddTransient<PurgeController>();
 			})
@@ -61,11 +61,11 @@ public class Program
 	/// </summary>
 	/// <param name="testSettings">Settings that overrides the default settings for the test environment</param>
 	/// <returns>PurgeController instance, based on the test settings</returns>
-	public static PurgeController GetTestEnvironment(Settings testSetting)
+	public static PurgeController GetTestEnvironment(Settings testSettings)
 	{
 		string[] args = Array.Empty<string>();
-		testSetting.TestEnvironmentMessage = "TEST-ENVIRONMENT : ";
-		return GetTestEnvironment(testSetting, args);
+		testSettings.TestEnvironmentMessage = "TEST-ENVIRONMENT : ";
+		return GetTestEnvironment(testSettings, args);
 	}
 
 	/// <summary>
@@ -81,7 +81,6 @@ public class Program
 			{
 				services.AddSingleton<IConfiguration>(context.Configuration);
 				services.AddSingleton<ILoggerFactory, LoggerFactory>();
-				services.AddTransient<CLI>();
 				services.AddTransient<ISettings, Settings>(provider =>
 				{
 					IConfiguration configuration = provider.GetRequiredService<IConfiguration>();
@@ -96,7 +95,9 @@ public class Program
 					}
 					if (args.Length != 0)
 					{
-						CLI cli = provider.GetRequiredService<CLI>();
+						ILoggerFactory loggerFactory = provider.GetRequiredService<ILoggerFactory>();
+						PathUtils pathUtils = new PathUtils(settings, loggerFactory);
+						CLI cli = new CLI(pathUtils);
 						settings = cli.ParseSetting(settings, configuration, args);
 					}
 
@@ -105,7 +106,6 @@ public class Program
 				services.AddTransient<IPurgeLogger, PurgeLogger>();
 				services.AddTransient<IAppLogger, AppLogger>();
 				services.AddTransient<IDesktopNotification, DesktopNotification>();
-				services.AddTransient<FileUtils>();
 				services.AddTransient<PathUtils>();
 				services.AddTransient<PurgeController>();
 			})
